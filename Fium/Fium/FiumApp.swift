@@ -6,27 +6,38 @@
 //
 
 import SwiftUI
-import SwiftData
+import Firebase
+import UserNotifications
 
 @main
 struct FiumApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    init() {
+        // Configura Firebase
+        FirebaseApp.configure()
+        // Solicita permisos de notificaciones
+        requestNotificationPermissions()
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LoginView()
         }
-        .modelContainer(sharedModelContainer)
+    }
+
+    func requestNotificationPermissions() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("Permisos de notificación otorgados.")
+            } else {
+                print("Permisos de notificación denegados.")
+            }
+        }
     }
 }
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    // Configuraciones adicionales si es necesario
+}
+

@@ -7,7 +7,7 @@
 
 import SwiftUI
 import LocalAuthentication
-import Firebase // Asegúrate de configurar Firebase en tu proyecto
+import FirebaseAuth
 
 struct LoginView: View {
     @State private var email = ""
@@ -51,14 +51,11 @@ struct LoginView: View {
                 HStack {
                     SignInButton(provider: "Google") {
                         // Acción de inicio de sesión con Google
-                        // Implementar integración con Firebase Auth para Google
                     }
                     SignInButton(provider: "Apple") {
                         // Acción de inicio de sesión con Apple
-                        // Implementar integración con Firebase Auth para Apple
                     }
                     SignInButton(provider: "PayPal") {
-                        // Acción de inicio de sesión con PayPal (mock por ahora)
                         loginWithPayPalMock()
                     }
                 }
@@ -99,8 +96,6 @@ struct LoginView: View {
 
     // Funciones de autenticación
     func loginWithEmail() {
-        // Aquí puedes implementar la autenticación con Firebase Auth
-        // Por ahora, simularemos un inicio de sesión exitoso
         if email.isEmpty || password.isEmpty {
             alertMessage = "Por favor, ingresa tu correo y contraseña."
             showAlert = true
@@ -126,17 +121,14 @@ struct LoginView: View {
             context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, authenticationError in
                 DispatchQueue.main.async {
                     if success {
-                        // Autenticación exitosa
                         isLoggedIn = true
                     } else {
-                        // Error en la autenticación
                         alertMessage = "Falló la autenticación biométrica."
                         showAlert = true
                     }
                 }
             }
         } else {
-            // No hay biométricos disponibles
             alertMessage = "La autenticación biométrica no está disponible."
             showAlert = true
         }
@@ -179,3 +171,8 @@ struct SignInButton: View {
     }
 }
 
+struct RegisterView: View {
+    var body: some View {
+        Text("Registro de Usuario")
+    }
+}

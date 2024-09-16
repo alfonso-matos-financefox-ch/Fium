@@ -5,10 +5,14 @@
 //  Created by Alfonso Matos Martínez on 16/9/24.
 //
 
+import SwiftUI
+
 struct ProfileView: View {
     @State private var name = "Carlos García"
     @State private var email = "carlos@example.com"
-    @State private var tokenBalance = 100
+    private var tokenBalance: Double {
+        TransactionManager.shared.transactions.reduce(100) { $0 + $1.amount }
+    }
     @State private var invitationCount = 5
     @State private var showingEditProfile = false
 
@@ -32,7 +36,7 @@ struct ProfileView: View {
                     VStack {
                         Text("Tokens")
                             .font(.headline)
-                        Text("\(tokenBalance)")
+                        Text("\(tokenBalance, specifier: "%.2f")")
                             .font(.title2)
                     }
                     Spacer()

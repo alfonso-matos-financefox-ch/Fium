@@ -5,12 +5,19 @@
 //  Created by Alfonso Matos Martínez on 16/9/24.
 //
 
+import SwiftUI
+
 struct DashboardView: View {
-    @State private var tokenBalance = 100
+    @ObservedObject var transactionManager = TransactionManager.shared
     @State private var showPaymentView = false
     @State private var showTransactionsView = false
     @State private var showRedeemView = false
     @State private var showInviteView = false
+    @State private var showProfileView = false
+
+    var tokenBalance: Double {
+        transactionManager.transactions.reduce(100) { $0 + $1.amount }
+    }
 
     var body: some View {
         NavigationView {
@@ -19,7 +26,7 @@ struct DashboardView: View {
                 VStack {
                     Text("Saldo de Tokens")
                         .font(.headline)
-                    Text("\(tokenBalance)")
+                    Text("\(tokenBalance, specifier: "%.2f")")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                 }
@@ -53,6 +60,17 @@ struct DashboardView: View {
                 }
 
                 Spacer()
+
+                // Botón de Perfil
+                Button(action: {
+                    showProfileView = true
+                }) {
+                    Text("Perfil")
+                        .foregroundColor(.blue)
+                }
+                .sheet(isPresented: $showProfileView) {
+                    ProfileView()
+                }
             }
             .padding()
             .navigationTitle("Fium")
@@ -95,4 +113,3 @@ struct DashboardButton: View {
         }
     }
 }
-

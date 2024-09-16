@@ -5,6 +5,8 @@
 //  Created by Alfonso Matos Martínez on 16/9/24.
 //
 
+import SwiftUI
+
 struct RedeemView: View {
     @State private var offers: [Offer] = [
         Offer(id: 1, storeName: "Café Central", product: "Café Gratis", tokensRequired: 10),
@@ -53,6 +55,10 @@ struct RedeemDetailView: View {
             Button(action: {
                 // Acción para generar código QR (simulado)
                 showQRCode = true
+
+                // Registrar la transacción
+                let transaction = Transaction(id: UUID(), name: offer.storeName, amount: -Double(offer.tokensRequired), concept: offer.product, date: Date(), type: .redeem)
+                TransactionManager.shared.addTransaction(transaction)
             }) {
                 Text("Canjear")
                     .foregroundColor(.white)
@@ -71,9 +77,21 @@ struct RedeemDetailView: View {
     }
 }
 
-struct Offer: Identifiable {
-    let id: Int
-    let storeName: String
-    let product: String
-    let tokensRequired: Int
+struct QRCodeView: View {
+    let code: String
+
+    var body: some View {
+        VStack {
+            Text("Código QR")
+                .font(.largeTitle)
+            Image(systemName: "qrcode")
+                .resizable()
+                .frame(width: 200, height: 200)
+            Text(code)
+                .font(.footnote)
+                .foregroundColor(.gray)
+            Spacer()
+        }
+        .padding()
+    }
 }

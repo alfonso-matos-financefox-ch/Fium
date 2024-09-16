@@ -6,3 +6,14 @@
 //
 
 import Foundation
+
+class TransactionManager: ObservableObject {
+    static let shared = TransactionManager()
+    @Published var transactions: [Transaction] = []
+
+    private init() {}
+
+    func addTransaction(_ transaction: Transaction) {
+        transactions.append(transaction)
+    }
+}

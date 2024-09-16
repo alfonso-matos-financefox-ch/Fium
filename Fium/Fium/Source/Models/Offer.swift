@@ -6,3 +6,11 @@
 //
 
 import Foundation
+
+struct Offer: Identifiable {
+    let id: Int
+    let storeName: String
+    let product: String
+    let tokensRequired: Int
+}
+

@@ -54,6 +54,9 @@ struct InviteView: View {
     }
 }
 
+// Implementación de QRCodeScannerView y AVCaptureViewController permanece igual
+
+
 // QR Code Scanner View
 struct QRCodeScannerView: UIViewControllerRepresentable {
     class Coordinator: NSObject, AVCaptureMetadataOutputObjectsDelegate {
