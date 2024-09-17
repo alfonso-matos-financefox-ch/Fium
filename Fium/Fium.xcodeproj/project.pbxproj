@@ -28,6 +28,8 @@
 		1FEE3F022C983BE3009F2280 /* TransactionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEE3F012C983BE3009F2280 /* TransactionManager.swift */; };
 		1FEE3F072C986CB1009F2280 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 1FEE3F062C986CB1009F2280 /* FirebaseAnalytics */; };
 		1FEE3F092C986D65009F2280 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 1FEE3F082C986D65009F2280 /* GoogleService-Info.plist */; };
+		1FEE3F0C2C987794009F2280 /* BonjourService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEE3F0B2C987794009F2280 /* BonjourService.swift */; };
+		1FEE3F0E2C987E66009F2280 /* BluetoothManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEE3F0D2C987E66009F2280 /* BluetoothManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +52,9 @@
 		1FEE3EFF2C983BD0009F2280 /* MultipeerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultipeerManager.swift; sourceTree = "<group>"; };
 		1FEE3F012C983BE3009F2280 /* TransactionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionManager.swift; sourceTree = "<group>"; };
 		1FEE3F082C986D65009F2280 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "../../GoogleService-Info.plist"; sourceTree = "<group>"; };
+		1FEE3F0A2C987328009F2280 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1FEE3F0B2C987794009F2280 /* BonjourService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BonjourService.swift; sourceTree = "<group>"; };
+		1FEE3F0D2C987E66009F2280 /* BluetoothManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -85,6 +90,7 @@
 		1FCF493D2C947D4A00690AD8 /* Fium */ = {
 			isa = PBXGroup;
 			children = (
+				1FEE3F0A2C987328009F2280 /* Info.plist */,
 				1FEE3EE12C9837E1009F2280 /* Source */,
 				1FCF493E2C947D4A00690AD8 /* FiumApp.swift */,
 				1FCF49402C947D4A00690AD8 /* ContentView.swift */,
@@ -129,6 +135,8 @@
 			children = (
 				1FEE3EFF2C983BD0009F2280 /* MultipeerManager.swift */,
 				1FEE3F012C983BE3009F2280 /* TransactionManager.swift */,
+				1FEE3F0B2C987794009F2280 /* BonjourService.swift */,
+				1FEE3F0D2C987E66009F2280 /* BluetoothManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -233,6 +241,7 @@
 				1FEE3F022C983BE3009F2280 /* TransactionManager.swift in Sources */,
 				1FCF49432C947D4A00690AD8 /* Item.swift in Sources */,
 				1FEE3EE92C983857009F2280 /* RedeemView.swift in Sources */,
+				1FEE3F0E2C987E66009F2280 /* BluetoothManager.swift in Sources */,
 				1FEE3EE52C983824009F2280 /* DashboardView.swift in Sources */,
 				1FEE3F002C983BD0009F2280 /* MultipeerManager.swift in Sources */,
 				1FEE3EED2C98387D009F2280 /* InviteView.swift in Sources */,
@@ -241,6 +250,7 @@
 				1FEE3EEB2C983868009F2280 /* TransactionsView.swift in Sources */,
 				1FEE3EE72C983843009F2280 /* ProfileView.swift in Sources */,
 				1FCF493F2C947D4A00690AD8 /* FiumApp.swift in Sources */,
+				1FEE3F0C2C987794009F2280 /* BonjourService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -377,6 +387,7 @@
 				DEVELOPMENT_TEAM = NW64ZQGZ22;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Fium/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -406,6 +417,7 @@
 				DEVELOPMENT_TEAM = NW64ZQGZ22;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Fium/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

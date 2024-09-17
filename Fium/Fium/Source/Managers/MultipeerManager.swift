@@ -33,8 +33,13 @@ class MultipeerManager: NSObject, ObservableObject {
     }
 
     func start() {
+        print("Iniciando publicidad y búsqueda de peers")
         advertiser.startAdvertisingPeer()
-        browser.startBrowsingForPeers()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.browser.startBrowsingForPeers()
+        }
+        print("Publicidad iniciada: \(self.advertiser)")
+            print("Búsqueda iniciada: \(self.browser)")
     }
 
     func stop() {
@@ -114,15 +119,24 @@ extension MultipeerManager: MCSessionDelegate {
 
 extension MultipeerManager: MCNearbyServiceAdvertiserDelegate {
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
+        print("Invitation received from: \(peerID.displayName)")
         invitationHandler(true, session)
     }
 }
 
 extension MultipeerManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String : String]?) {
-        browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+        print("Peer found: \(peerID.displayName)")
+        if peerID != myPeerID {  // Asegúrate de que no estás conectando contigo mismo
+                browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+                DispatchQueue.main.async {
+                    self.discoveredPeer = peerID  // Este será el otro dispositivo, no tú mismo
+                }
+            }
     }
 
-    func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {}
+    func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
+        print("Peer lost: \(peerID.displayName)")
+    }
 }
 

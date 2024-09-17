@@ -7,52 +7,88 @@
 
 import SwiftUI
 import AVFoundation
+import CoreImage.CIFilterBuiltins
 
 struct InviteView: View {
-    @State private var isShowingScanner = false
-    @State private var scannedCode: String?
+    @State private var qrCodeImage: UIImage?
+
+    var userName = "JohnDoe" // Nombre del usuario autenticado
+    var userID = "12345"     // ID del usuario autenticado
 
     var body: some View {
         VStack(spacing: 20) {
-            if let code = scannedCode {
-                Text("Código Escaneado:")
-                    .font(.headline)
-                Text(code)
-                    .font(.largeTitle)
+            Text("Invita a tus amigos")
+                .font(.largeTitle)
+
+            if let qrCodeImage = qrCodeImage {
+                Image(uiImage: qrCodeImage)
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .frame(width: 200, height: 200)
+                    .padding()
             } else {
-                Text("Escanea el código QR de invitación")
-                    .font(.headline)
+                Text("Generando código QR...")
+                    .onAppear {
+                        generateQRCode()
+                    }
             }
 
-            Button(action: {
-                isShowingScanner = true
-            }) {
-                Text("Escanear QR")
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue)
-                    .cornerRadius(10)
-            }
-            .sheet(isPresented: $isShowingScanner) {
-                QRCodeScannerView { result in
-                    switch result {
-                    case .success(let code):
-                        scannedCode = code
-                        isShowingScanner = false
-                    case .failure(let error):
-                        print("Scanning failed: \(error.localizedDescription)")
-                        isShowingScanner = false
-                    }
-                }
-            }
+            Text("Pide a tu amigo que escanee este código para unirse a la app y obtener recompensas.")
 
             Spacer()
         }
         .padding()
         .navigationTitle("Invitar Amigos")
     }
+
+    // Generar el código QR con los datos del usuario
+    func generateQRCode() {
+        let qrString = "\(userName)|\(userID)"
+        let context = CIContext()
+        let filter = CIFilter.qrCodeGenerator()
+        let data = Data(qrString.utf8)
+        filter.setValue(data, forKey: "inputMessage")
+
+        if let qrImage = filter.outputImage,
+           let cgImage = context.createCGImage(qrImage, from: qrImage.extent) {
+            let uiImage = UIImage(cgImage: cgImage)
+            self.qrCodeImage = uiImage
+        }
+    }
+
+    // Procesar el código escaneado
+    func handleScannedCode(_ code: String) {
+        let components = code.split(separator: "|")
+        guard components.count == 2 else { return }
+        
+        let scannedUserName = String(components[0])
+        let scannedUserID = String(components[1])
+
+        // Lógica para recompensar al usuario que envió la invitación
+        print("Código escaneado de \(scannedUserName) con ID: \(scannedUserID)")
+        
+        // Registrar la invitación en el backend y otorgar tokens
+        registerInvitation(forUserID: scannedUserID)
+    }
+    
+    // Función para registrar la invitación en Firebase
+    func registerInvitation(forUserID userID: String) {
+//        let db = Firestore.firestore()
+//        let invitationsRef = db.collection("invitations").document(userID)
+//
+//        invitationsRef.updateData([
+//            "tokens": FieldValue.increment(Int64(10)) // Otorgar 10 tokens por invitación
+//        ]) { error in
+//            if let error = error {
+//                print("Error al registrar la invitación: \(error.localizedDescription)")
+//            } else {
+//                print("Invitación registrada exitosamente y tokens otorgados")
+//            }
+//        }
+    }
 }
+
 
 // Implementación de QRCodeScannerView y AVCaptureViewController permanece igual
 

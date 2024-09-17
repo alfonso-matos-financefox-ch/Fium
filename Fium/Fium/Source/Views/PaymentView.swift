@@ -36,12 +36,12 @@ struct PaymentView: View {
                 Text("Conectado con: \(peer.displayName)")
                     .foregroundColor(.green)
                     .transition(.opacity)
-                    .animation(.easeIn)
+                    .animation(.easeIn, value: multipeerManager.discoveredPeer)
             } else {
                 Text("Buscando dispositivos cercanos...")
                     .foregroundColor(.orange)
                     .transition(.opacity)
-                    .animation(.easeOut)
+                    .animation(.easeOut, value: multipeerManager.discoveredPeer)
             }
 
             if isSendingPayment {
@@ -84,8 +84,8 @@ struct PaymentView: View {
                 showReceivedRequest = true
             }
         }
-        .onChange(of: isSendingPayment) { sending in
-            if !sending && paymentSent {
+        .onChange(of: isSendingPayment) {  oldValue, newValue in
+            if !newValue && paymentSent {
                 showConfirmation = true
                 resetForm()
             }
