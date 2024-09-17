@@ -19,12 +19,17 @@ class MultipeerManager: NSObject, ObservableObject {
 
     @Published var discoveredPeer: MCPeerID?
     @Published var receivedPaymentRequest: PaymentRequest?
+    @Published var peerName: String = "Alfonso"  // Para almacenar el nombre del peer descubierto
+    @Published var peerIcon: String = "Icon"  // Para almacenar el ícono del peer
 
     var audioPlayer: AVAudioPlayer?
 
     override init() {
+        // Aquí añadimos el discoveryInfo con el nombre e ícono del usuario
+        let discoveryInfo = ["name": UIDevice.current.name, "icon": "defaultIcon"]  // Puedes personalizar el ícono
+
         self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
-        self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: nil, serviceType: MultipeerManager.serviceType)
+        self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: discoveryInfo, serviceType: MultipeerManager.serviceType)
         self.browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: MultipeerManager.serviceType)
         super.init()
         session.delegate = self
@@ -38,6 +43,7 @@ class MultipeerManager: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             self.browser.startBrowsingForPeers()
         }
+      
         print("Publicidad iniciada: \(self.advertiser)")
             print("Búsqueda iniciada: \(self.browser)")
     }
@@ -80,18 +86,24 @@ class MultipeerManager: NSObject, ObservableObject {
 extension MultipeerManager: MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         print("Peer \(peerID.displayName) changed state: \(state.rawValue)")
-        if state == .connected {
-            DispatchQueue.main.async {
-                self.discoveredPeer = peerID
-                self.playSound(named: "connected")
-                self.vibrate()
-            }
-        } else if state == .notConnected {
-            DispatchQueue.main.async {
-                if self.discoveredPeer == peerID {
-                    self.discoveredPeer = nil
+        
+        // Verificar si el peerID es distinto al tuyo
+        if peerID != myPeerID {
+            if state == .connected {
+                DispatchQueue.main.async {
+                    self.discoveredPeer = peerID  // Establecer peer conectado solo si no eres tú mismo
+                    self.playSound(named: "connected")
+                    self.vibrate()
+                }
+            } else if state == .notConnected {
+                DispatchQueue.main.async {
+                    if self.discoveredPeer == peerID {
+                        self.discoveredPeer = nil
+                    }
                 }
             }
+        } else {
+            print("No debe conectar consigo mismo.")
         }
     }
 
@@ -127,13 +139,31 @@ extension MultipeerManager: MCNearbyServiceAdvertiserDelegate {
 extension MultipeerManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String : String]?) {
         print("Peer found: \(peerID.displayName)")
-        if peerID != myPeerID {  // Asegúrate de que no estás conectando contigo mismo
-                browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+       
+        // Verifica que no estás conectándote a ti mismo
+        if peerID != myPeerID {
+            if let info = info {
+                // Mostrar la información personalizada (nombre e ícono) del peer
+                let peerName = info["name"] ?? "Desconocido"
+                let peerIcon = info["icon"] ?? "defaultIcon"
+                print("Conectado con \(peerName) que tiene el ícono \(peerIcon)")
+                
                 DispatchQueue.main.async {
-                    self.discoveredPeer = peerID  // Este será el otro dispositivo, no tú mismo
+                    self.peerName = peerName
+                    self.peerIcon = peerIcon
                 }
             }
-    }
+
+            // Invitar al peer descubierto a la sesión
+            browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+            
+            DispatchQueue.main.async {
+                self.discoveredPeer = peerID  // Solo establece este peer si no es tú mismo
+            }
+        } else {
+            print("Evitar conexión con uno mismo")
+        }
+        }
 
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         print("Peer lost: \(peerID.displayName)")
