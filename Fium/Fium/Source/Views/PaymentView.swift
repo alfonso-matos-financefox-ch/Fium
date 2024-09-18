@@ -18,25 +18,65 @@ struct PaymentView: View {
     @State private var paymentSent = false
     @State private var showAlert = false
     @State private var alertMessage = ""
+    
+    @State private var selectedRole: String = ""  // Rol seleccionado por el usuario (emisor o receptor)
+    @State private var isReceiver = false         // Define si este usuario es receptor
+    @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
+
 
     var body: some View {
         VStack(spacing: 20) {
-            // Campo de Monto
-            TextField("Cantidad a pagar", text: $amount)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .disabled(isSendingPayment)
+            // Selección de rol
+            Picker("Selecciona tu rol", selection: $selectedRole) {
+                Text("Emisor").tag("sender")
+                Text("Receptor").tag("receiver")
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding()
+            .onChange(of: selectedRole) { oldValue, newValue in
+                if newValue == "receiver" {
+                    isReceiver = true
+                    // Enviar el rol de receptor
+                    multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
+                } else if newValue == "sender" {
+                    isReceiver = false
+                    // Enviar el rol de emisor
+                    multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
+                }
+            }
 
-            // Campo de Concepto
-            TextField("Concepto del pago", text: $concept)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .disabled(isSendingPayment)
-
-            if let peer = multipeerManager.discoveredPeer {
-                Text("Conectado con: \(peer.displayName)")
+            if isReceiver && isWaitingForTransfer {
+                Text("Esperando pago del emisor...")
+                    .font(.headline)
+                    .foregroundColor(.green)
+                Text("Conectado con: \(multipeerManager.discoveredPeer?.displayName ?? "Desconocido")")
                     .foregroundColor(.green)
                     .transition(.opacity)
                     .animation(.easeIn, value: multipeerManager.discoveredPeer)
+            } else {
+                // Campo de Monto y Concepto (solo visible si el rol es de emisor)
+                TextField("Cantidad a pagar", text: $amount)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .disabled(isSendingPayment)
+                
+                TextField("Concepto del pago", text: $concept)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .disabled(isSendingPayment)
+            }
+
+            if multipeerManager.peerName != "Alfonso" {  // Asegúrate de que el valor predeterminado ha cambiado
+                VStack {
+                    Text("Conectado con: \(multipeerManager.peerName)")
+                        .foregroundColor(.green)
+                        .transition(.opacity)
+                        .animation(.easeIn, value: multipeerManager.peerName)
+
+                    Text("Ícono del peer: \(multipeerManager.peerIcon)")
+                        .foregroundColor(.green)
+                        .transition(.opacity)
+                        .animation(.easeIn, value: multipeerManager.peerIcon)
+                }
             } else {
                 Text("Buscando dispositivos cercanos...")
                     .foregroundColor(.orange)
@@ -49,28 +89,37 @@ struct PaymentView: View {
                     .padding()
             }
 
-            // Botón para enviar solicitud de pago
-            Button(action: {
-                authenticateUser { success in
-                    if success {
-                        sendPayment()
-                    } else {
-                        alertMessage = "Autenticación fallida."
-                        showAlert = true
+            // Botón para enviar solicitud de pago (solo si es emisor)
+            if !isReceiver {
+                Button(action: {
+                    authenticateUser { success in
+                        if success {
+                            // Enviar solicitud preliminar de pago al receptor
+                            sendPreliminaryPaymentRequest()
+                        } else {
+                            alertMessage = "Autenticación fallida."
+                            showAlert = true
+                        }
                     }
+                }) {
+                    Text("Enviar Solicitud de Pago")
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
+                        .cornerRadius(10)
                 }
-            }) {
-                Text("Enviar Pago")
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
-                    .cornerRadius(10)
+                .disabled(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment)
             }
-            .disabled(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment)
 
             Spacer()
+            Text(multipeerManager.statusMessage)
+                    .font(.headline)
+                    .foregroundColor(.blue)
+                    .padding()
+            Spacer()
         }
+
         .padding()
         .navigationTitle("Realizar Pago")
         .onAppear {
@@ -125,35 +174,67 @@ struct PaymentView: View {
     func sendPayment() {
         if let amountValue = Double(amount) {
             let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: multipeerManager.myPeerID.displayName)
-            multipeerManager.sendPaymentRequest(paymentRequest)
+            
+            // Enviar tanto el rol como la solicitud de pago
+            multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: paymentRequest)
+            
             isSendingPayment = true
 
             // Registrar la transacción localmente
-            let transaction = Transaction(id: UUID(), name: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: -amountValue, concept: concept, date: Date(), type: .payment)
+            multipeerManager.statusMessage = "Registrar la transaccion localmente"
+            let transaction = Transaction(id: UUID(), name: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue, concept: concept, date: Date(), type: .payment)
             TransactionManager.shared.addTransaction(transaction)
+
+            // Actualizar los tokens de ambos usuarios (puedes definir la lógica para sumar tokens aquí)
+            updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
 
             sendTransactionNotification(amount: amountValue, recipient: multipeerManager.discoveredPeer?.displayName ?? "Desconocido")
         }
     }
+    
+    func sendPreliminaryPaymentRequest() {
+        if let amountValue = Double(amount) {
+            let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: multipeerManager.myPeerID.displayName)
+            
+            // Enviar la solicitud preliminar al receptor a través de MultipeerManager
+            multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: paymentRequest)
+            
+            isSendingPayment = true  // Indicamos que se está procesando el envío
+            }
+    }
 
+    func updateTokens(for user: String, amount: Double) {
+        // Actualiza la lógica de tokens, dependiendo de tu modelo
+        // Por ejemplo, sumar una cantidad de tokens fija o basada en el monto
+        let tokensEarned = calculateTokens(for: amount)
+        
+        // Aquí sumas los tokens al pagador o al receptor según sea necesario
+        print("\(user) ha recibido \(tokensEarned) tokens.")
+        multipeerManager.statusMessage = "\(user) ha recibido \(tokensEarned) tokens."
+    }
+    
+    func calculateTokens(for amount: Double) -> Int {
+        // Aquí puedes decidir la cantidad de tokens que ganas por cada pago
+        return Int(amount / 10)  // Ejemplo: 1 token por cada 10 euros
+    }
+    
     func processReceivedPayment() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             paymentSent = true
             isSendingPayment = false
 
-            // Registrar la transacción localmente
+            // Llamar a `completePayment` en MultipeerManager para registrar la transacción
             if let paymentRequest = multipeerManager.receivedPaymentRequest {
-                let transaction = Transaction(id: UUID(), name: paymentRequest.senderName, amount: paymentRequest.amount, concept: paymentRequest.concept, date: Date(), type: .payment)
-                TransactionManager.shared.addTransaction(transaction)
-
-                sendTransactionNotification(amount: paymentRequest.amount, recipient: paymentRequest.senderName)
+                multipeerManager.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
             }
 
             multipeerManager.receivedPaymentRequest = nil
             multipeerManager.playSound(named: "transaction_success")
+            multipeerManager.statusMessage = "Transaction Success"
             multipeerManager.vibrate()
         }
     }
+
 
     func resetForm() {
         amount = ""
