@@ -27,6 +27,9 @@ class MultipeerManager: NSObject, ObservableObject {
     
     @Published var statusMessage: String = "Buscando dispositivos cercanos..."  // Mensaje de estado
     
+    @Published var senderState: SenderState = .idle
+    @Published var receiverState: ReceiverState = .idle
+    
     var audioPlayer: AVAudioPlayer?
     var deviceIdentifier: String
     override init() {
@@ -47,6 +50,20 @@ class MultipeerManager: NSObject, ObservableObject {
         browser.delegate = self
     }
 
+    func updateSenderState(_ newState: SenderState) {
+        DispatchQueue.main.async {
+            self.senderState = newState
+            print("Nuevo estado del emisor: \(newState)")
+        }
+    }
+
+    func updateReceiverState(_ newState: ReceiverState) {
+        DispatchQueue.main.async {
+            self.receiverState = newState
+            print("Nuevo estado del receptor: \(newState)")
+        }
+    }
+    
     static func getDeviceModelIdentifier() -> String {
         var systemInfo = utsname()
         uname(&systemInfo)
@@ -64,9 +81,10 @@ class MultipeerManager: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             self.browser.startBrowsingForPeers()
         }
-      
+        updateSenderState(.idle)
+        updateReceiverState(.idle)
         print("Publicidad iniciada: \(self.advertiser)")
-            print("Búsqueda iniciada: \(self.browser)")
+        print("Búsqueda iniciada: \(self.browser)")
     }
 
     func stop() {
@@ -82,8 +100,10 @@ class MultipeerManager: NSObject, ObservableObject {
                 try session.send(data, toPeers: session.connectedPeers, with: .reliable)
                 playSound(named: "payment_sent")
                 self.statusMessage = "payment sent"
+                updateSenderState(.paymentSent)
             } catch let error {
                 print("Error sending payment request: \(error.localizedDescription)")
+                
             }
         } else {
             print("No hay peers conectados")
@@ -96,6 +116,11 @@ class MultipeerManager: NSObject, ObservableObject {
             let data = try JSONSerialization.data(withJSONObject: roleData, options: .fragmentsAllowed)
             try session.send(data, toPeers: session.connectedPeers, with: .reliable)
             self.statusMessage = "sendRole"
+            if role == "sender" {
+                updateSenderState(.roleSelectedSender)
+            } else {
+                updateReceiverState(.roleSelectedReceiver)
+            }
         } catch let error {
             print("Error al enviar el rol: \(error)")
         }
@@ -125,6 +150,12 @@ class MultipeerManager: NSObject, ObservableObject {
            isSendingPayment = false  // No está enviando si no hay peers
            return
        }
+        // Actualizar el estado según el rol seleccionado
+        if role == "sender" {
+            updateSenderState(.waitingForPaymentApproval)
+        } else if role == "receiver" {
+            updateReceiverState(.waitingForPaymentRequest)
+        }
         
         // Antes de enviar el pago
         isSendingPayment = true
@@ -166,6 +197,8 @@ class MultipeerManager: NSObject, ObservableObject {
         sendTransactionNotification(amount: amount, recipient: recipientName)
         
         isSendingPayment = false
+        updateSenderState(.paymentCompleted)
+        updateReceiverState(.paymentCompleted)
     }
 
     
@@ -183,6 +216,7 @@ class MultipeerManager: NSObject, ObservableObject {
     }
     
     func sendAcceptanceToSender() {
+        self.statusMessage = "sendAcceptanceToSender"
         guard let paymentRequest = self.receivedPaymentRequest else {
             print("No payment request found in receiver")
             self.statusMessage = "No payment request found in receiver"
@@ -203,6 +237,7 @@ class MultipeerManager: NSObject, ObservableObject {
             
             print("Solicitud de pago aceptada y enviada al emisor con detalles de la transacción")
             self.statusMessage = "Solicitud de pago aceptada y detalles enviados"
+            updateReceiverState(.paymentAccepted)
         } catch let error {
             print("Error al enviar la aceptación: \(error)")
             self.statusMessage = "Error al enviar aceptación: \(error.localizedDescription)"
@@ -228,13 +263,22 @@ extension MultipeerManager: MCSessionDelegate {
             case .notConnected:
                 print("Peer \(peerID.displayName) desconectado")
                 self.statusMessage = "Peer \(peerID.displayName) desconectado"
+                
                 // Actualizar la interfaz para reflejar que no hay peers conectados
                 self.isWaitingForTransfer = false
                 self.isReceiver = false
                 self.discoveredPeer = nil  // Limpiar el peer descubierto
-                // Actualiza la interfaz o detén cualquier intento de comunicación
-                // Intentar reconectar automáticamente
-                self.browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+                
+                // Verificar si tu dispositivo se ha desconectado
+                if peerID == self.myPeerID {
+                    // Si es tu propio dispositivo, reinicia la publicidad y búsqueda de peers
+                    print("Tu dispositivo se ha desconectado. Reiniciando publicidad y búsqueda de peers.")
+                    self.restartConnection()
+                } else {
+                    // Intentar reconectar automáticamente al peer que se desconectó
+                    print("Intentando reconectar al peer \(peerID.displayName)...")
+                    self.browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+                }
                 
             @unknown default:
                 fatalError("Estado desconocido de la sesión")
@@ -261,6 +305,14 @@ extension MultipeerManager: MCSessionDelegate {
         }
     }
 
+    func restartConnection() {
+        // Detener servicios actuales
+        self.stop() // Este es tu método que detiene advertiser, browser y desconecta la sesión
+
+        // Reiniciar todo desde cero
+        self.start() // Vuelve a empezar a anunciar y buscar peers
+    }
+    
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         do {
             if let receivedData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
@@ -277,6 +329,8 @@ extension MultipeerManager: MCSessionDelegate {
                     }
                     DispatchQueue.main.async {
                         if role == "sender" {
+                            // El receptor espera la solicitud de pago
+                            self.updateReceiverState(.waitingForPaymentRequest)
                             print("Role sender")
                             self.statusMessage = "Role sender"
                             // Si el otro dispositivo es el emisor, este dispositivo será el receptor
@@ -286,6 +340,7 @@ extension MultipeerManager: MCSessionDelegate {
                             // Si acepta, llamamos a una función para enviar la aceptación de vuelta al emisor
                             self.sendAcceptanceToSender()
                         } else if role == "receiver" {
+                            self.updateSenderState(.waitingForPaymentApproval)
                             print("role receiver")
                             self.statusMessage = "role receiver"
                             // Si el otro dispositivo es el receptor, este dispositivo es el emisor
@@ -300,6 +355,7 @@ extension MultipeerManager: MCSessionDelegate {
                    let decodedData = Data(base64Encoded: paymentData) {
                     let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
                     print("Entra en paymentData")
+                    updateReceiverState(.paymentRequestReceived)
                     DispatchQueue.main.async {
                         self.statusMessage = "Entra en paymentData"
                     }
@@ -316,6 +372,7 @@ extension MultipeerManager: MCSessionDelegate {
                 if let status = receivedData["status"] as? String, status == "accepted" {
                     DispatchQueue.main.async {
                         print("Pago aceptado por el receptor")
+                        self.updateSenderState(.paymentAccepted)
                         self.statusMessage = "Pago aceptado por el receptor"
                         
                         // Asegúrate de que recibes la solicitud de pago de vuelta

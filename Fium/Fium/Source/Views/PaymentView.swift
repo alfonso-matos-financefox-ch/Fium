@@ -9,6 +9,8 @@ import SwiftUI
 import LocalAuthentication
 
 struct PaymentView: View {
+    
+    @Environment(\.presentationMode) var presentationMode
     @State private var amount = ""
     @State private var concept = ""
     @StateObject private var multipeerManager = MultipeerManager()
@@ -18,6 +20,8 @@ struct PaymentView: View {
     @State private var paymentSent = false
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var showSuccessCheckmark = false  // Nueva variable para mostrar la animación de éxito
+    @State private var tokensEarned = 0
     
     @State private var selectedRole: String = ""  // Rol seleccionado por el usuario (emisor o receptor)
     @State private var isReceiver = false         // Define si este usuario es receptor
@@ -36,15 +40,39 @@ struct PaymentView: View {
             .onChange(of: selectedRole) { oldValue, newValue in
                 if newValue == "receiver" {
                     isReceiver = true
-                    // Enviar el rol de receptor
+                    multipeerManager.updateReceiverState(.roleSelectedReceiver)
                     multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
                 } else if newValue == "sender" {
                     isReceiver = false
-                    // Enviar el rol de emisor
+                    multipeerManager.updateSenderState(.roleSelectedSender)
                     multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
                 }
             }
 
+            // Mostrar el estado del emisor
+            if !isReceiver {
+                VStack(spacing: 10) {
+                    Text("Estado del Emisor:")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                    
+                    Text(senderStateText())  // Función para mostrar el estado textual del emisor
+                        .foregroundColor(.blue)
+                }
+            }
+
+            // Mostrar el estado del receptor
+            if isReceiver {
+                VStack(spacing: 10) {
+                    Text("Estado del Receptor:")
+                        .font(.headline)
+                        .foregroundColor(.green)
+                    
+                    Text(receiverStateText())  // Función para mostrar el estado textual del receptor
+                        .foregroundColor(.green)
+                }
+            }
+            
             if isReceiver && isWaitingForTransfer {
                 Text("Esperando pago del emisor...")
                     .font(.headline)
@@ -84,13 +112,31 @@ struct PaymentView: View {
                     .animation(.easeOut, value: multipeerManager.discoveredPeer)
             }
 
-            if isSendingPayment {
+            if isSendingPayment && !showSuccessCheckmark {
                 ProgressView("Enviando pago...")
                     .padding()
+            } else if showSuccessCheckmark {
+                VStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .resizable()
+                        .foregroundColor(.green)
+                        .frame(width: 60, height: 60)
+                        .transition(.scale)
+
+                    Text("¡Pago realizado con éxito!")
+                        .font(.headline)
+                        .foregroundColor(.green)
+                        .padding(.top)
+
+                    Text("Has ganado \(tokensEarned) tokens.")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                }
             }
 
+
             // Botón para enviar solicitud de pago (solo si es emisor)
-            if !isReceiver {
+            if !isReceiver && !isSendingPayment {
                 Button(action: {
                     authenticateUser { success in
                         if success {
@@ -203,6 +249,40 @@ struct PaymentView: View {
             }
     }
 
+    func senderStateText() -> String {
+            switch multipeerManager.senderState {
+            case .idle:
+                return "Esperando para conectarse..."
+            case .roleSelectedSender:
+                return "Rol seleccionado: Emisor"
+            case .waitingForPaymentApproval:
+                return "Esperando que el receptor acepte el pago..."
+            case .paymentAccepted:
+                return "El pago ha sido aceptado por el receptor."
+            case .paymentSent:
+                return "El pago ha sido enviado."
+            case .paymentCompleted:
+                return "La transacción ha sido completada."
+            }
+        }
+
+        func receiverStateText() -> String {
+            switch multipeerManager.receiverState {
+            case .idle:
+                return "Esperando para conectarse..."
+            case .roleSelectedReceiver:
+                return "Rol seleccionado: Receptor"
+            case .waitingForPaymentRequest:
+                return "Esperando la solicitud de pago del emisor..."
+            case .paymentRequestReceived:
+                return "Solicitud de pago recibida."
+            case .paymentAccepted:
+                return "El pago ha sido aceptado."
+            case .paymentCompleted:
+                return "La transacción ha sido completada."
+            }
+        }
+    
     func updateTokens(for user: String, amount: Double) {
         // Actualiza la lógica de tokens, dependiendo de tu modelo
         // Por ejemplo, sumar una cantidad de tokens fija o basada en el monto
@@ -219,21 +299,33 @@ struct PaymentView: View {
     }
     
     func processReceivedPayment() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            paymentSent = true
-            isSendingPayment = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                paymentSent = true
+                isSendingPayment = false
 
-            // Llamar a `completePayment` en MultipeerManager para registrar la transacción
-            if let paymentRequest = multipeerManager.receivedPaymentRequest {
-                multipeerManager.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
+                if let paymentRequest = multipeerManager.receivedPaymentRequest {
+                    multipeerManager.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
+                    // Simula que los tokens se calculan y se muestran
+                    tokensEarned = calculateTokens(for: paymentRequest.amount)
+                }
+
+                multipeerManager.receivedPaymentRequest = nil
+                multipeerManager.playSound(named: "transaction_success")
+                multipeerManager.statusMessage = "Transaction Success"
+                multipeerManager.vibrate()
+
+                
+
+                // Mostrar el check de éxito y ocultar el ProgressView
+                showSuccessCheckmark = true
+
+                // Cerrar la pantalla automáticamente después de 3 segundos
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    // Cerrar la modal
+                    presentationMode.wrappedValue.dismiss()
+                }
             }
-
-            multipeerManager.receivedPaymentRequest = nil
-            multipeerManager.playSound(named: "transaction_success")
-            multipeerManager.statusMessage = "Transaction Success"
-            multipeerManager.vibrate()
         }
-    }
 
 
     func resetForm() {
