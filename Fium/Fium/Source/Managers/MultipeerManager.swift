@@ -30,6 +30,8 @@ class MultipeerManager: NSObject, ObservableObject {
     @Published var senderState: SenderState = .idle
     @Published var receiverState: ReceiverState = .idle
     
+    @Published var selectedRole: String = "none"  // o "receiver"
+    
     var audioPlayer: AVAudioPlayer?
     var deviceIdentifier: String
     override init() {
@@ -143,6 +145,7 @@ class MultipeerManager: NSObject, ObservableObject {
     
     func sendRoleAndPaymentRequest(role: String, paymentRequest: PaymentRequest?) {
         var message = ["role": role]
+        selectedRole = role // Actualiza el rol seleccionado
         
         // Verificar si hay peers conectados
        if session.connectedPeers.isEmpty {
@@ -327,6 +330,20 @@ extension MultipeerManager: MCSessionDelegate {
                     DispatchQueue.main.async {
                         self.statusMessage = "Entra en role"
                     }
+                    
+                    // Actualizar el rol seleccionado en el dispositivo receptor
+                    DispatchQueue.main.async {
+                        if role == "sender" {
+                            self.selectedRole = "receiver"  // Si el otro es "sender", este será "receiver"
+                            self.updateReceiverState(.roleSelectedReceiver)
+                            self.isReceiver = true
+                        } else if role == "receiver" {
+                            self.selectedRole = "sender"  // Si el otro es "receiver", este será "sender"
+                            self.updateSenderState(.roleSelectedSender)
+                            self.isReceiver = false
+                        }
+                    }
+                    
                     DispatchQueue.main.async {
                         if role == "sender" {
                             // El receptor espera la solicitud de pago

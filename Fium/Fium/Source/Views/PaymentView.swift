@@ -23,30 +23,35 @@ struct PaymentView: View {
     @State private var showSuccessCheckmark = false  // Nueva variable para mostrar la animación de éxito
     @State private var tokensEarned = 0
     
-    @State private var selectedRole: String = ""  // Rol seleccionado por el usuario (emisor o receptor)
+    @State private var selectedRole: String = "none"  // Rol seleccionado por el usuario (emisor o receptor)
     @State private var isReceiver = false         // Define si este usuario es receptor
     @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
-
 
     var body: some View {
         VStack(spacing: 20) {
             // Selección de rol
             Picker("Selecciona tu rol", selection: $selectedRole) {
+                Text("Selecciona un rol").tag("none")  // Estado indefinido
                 Text("Emisor").tag("sender")
                 Text("Receptor").tag("receiver")
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding()
             .onChange(of: selectedRole) { oldValue, newValue in
-                if newValue == "receiver" {
-                    isReceiver = true
-                    multipeerManager.updateReceiverState(.roleSelectedReceiver)
-                    multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
-                } else if newValue == "sender" {
-                    isReceiver = false
-                    multipeerManager.updateSenderState(.roleSelectedSender)
-                    multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
+                if newValue != "none" {  // Solo proceder si han seleccionado un rol
+                    multipeerManager.selectedRole = newValue  // Actualiza el rol en el manager
+                    if newValue == "receiver" {
+                        isReceiver = true
+                        multipeerManager.updateReceiverState(.roleSelectedReceiver)
+                        multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
+                    } else if newValue == "sender" {
+                        isReceiver = false
+                        multipeerManager.updateSenderState(.roleSelectedSender)
+                        multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
+                    }
                 }
+            }.onReceive(multipeerManager.$selectedRole) { newRole in
+                selectedRole = newRole  // Actualiza el picker con el nuevo rol
             }
 
             // Mostrar el estado del emisor
@@ -58,23 +63,6 @@ struct PaymentView: View {
                     
                     Text(senderStateText())  // Función para mostrar el estado textual del emisor
                         .foregroundColor(.blue)
-                    
-                    if multipeerManager.senderState == .paymentCompleted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .resizable()
-                            .foregroundColor(.green)
-                            .frame(width: 60, height: 60)
-                            .transition(.scale)
-
-                        Text("¡Pago realizado con éxito!")
-                            .font(.headline)
-                            .foregroundColor(.green)
-                            .padding(.top)
-
-                        Text("Has ganado \(tokensEarned) tokens.")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                    }
                     
                     // Campo de Monto y Concepto (solo visible si el rol es de emisor)
                     TextField("Cantidad a pagar", text: $amount)
