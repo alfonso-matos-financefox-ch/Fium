@@ -58,6 +58,33 @@ struct PaymentView: View {
                     
                     Text(senderStateText())  // Función para mostrar el estado textual del emisor
                         .foregroundColor(.blue)
+                    
+                    if multipeerManager.senderState == .paymentCompleted {
+                        Image(systemName: "checkmark.circle.fill")
+                            .resizable()
+                            .foregroundColor(.green)
+                            .frame(width: 60, height: 60)
+                            .transition(.scale)
+
+                        Text("¡Pago realizado con éxito!")
+                            .font(.headline)
+                            .foregroundColor(.green)
+                            .padding(.top)
+
+                        Text("Has ganado \(tokensEarned) tokens.")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    // Campo de Monto y Concepto (solo visible si el rol es de emisor)
+                    TextField("Cantidad a pagar", text: $amount)
+                        .keyboardType(.decimalPad)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .disabled(isSendingPayment)
+                    
+                    TextField("Concepto del pago", text: $concept)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .disabled(isSendingPayment)
                 }
             }
 
@@ -73,6 +100,40 @@ struct PaymentView: View {
                 }
             }
             
+            // Si el rol es "receiver" y ha recibido una solicitud de pago, muestra los detalles
+            if isReceiver && multipeerManager.receiverState == .paymentRequestReceived {
+                Text("Cantidad a pagar: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")€")
+                Text("Concepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")")
+                
+                Button("Aceptar Pago") {
+                    // El receptor acepta el pago
+                    authenticateUser { success in
+                        if success {
+                            multipeerManager.updateReceiverState(.paymentAccepted)
+                            // Envía la aceptación al emisor
+                            multipeerManager.sendAcceptanceToSender()
+                            processReceivedPayment()
+                        } else {
+                            alertMessage = "Autenticación fallida."
+                            showAlert = true
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.green)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                
+                Button("Rechazar Pago") {
+                    multipeerManager.receivedPaymentRequest = nil
+                    multipeerManager.updateReceiverState(.idle)
+                }
+                .padding()
+                .background(Color.red)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            }
+            
             if isReceiver && isWaitingForTransfer {
                 Text("Esperando pago del emisor...")
                     .font(.headline)
@@ -81,18 +142,8 @@ struct PaymentView: View {
                     .foregroundColor(.green)
                     .transition(.opacity)
                     .animation(.easeIn, value: multipeerManager.discoveredPeer)
-            } else {
-                // Campo de Monto y Concepto (solo visible si el rol es de emisor)
-                TextField("Cantidad a pagar", text: $amount)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .disabled(isSendingPayment)
-                
-                TextField("Concepto del pago", text: $concept)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .disabled(isSendingPayment)
             }
-
+            
             if multipeerManager.peerName != "Alfonso" {  // Asegúrate de que el valor predeterminado ha cambiado
                 VStack {
                     Text("Conectado con: \(multipeerManager.peerName)")
@@ -184,6 +235,16 @@ struct PaymentView: View {
                 showConfirmation = true
                 resetForm()
             }
+        }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
+            if newValue == .paymentCompleted {
+                showSuccessCheckmark = true
+                processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
+                // Cerrar la pantalla automáticamente después de 3 segundos
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    // Cerrar la modal
+                    presentationMode.wrappedValue.dismiss()
+                }
+            }
         }
         // Alertas y hojas
         .alert(isPresented: $showReceivedRequest) {
@@ -235,6 +296,7 @@ struct PaymentView: View {
             updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
 
             sendTransactionNotification(amount: amountValue, recipient: multipeerManager.discoveredPeer?.displayName ?? "Desconocido")
+            multipeerManager.updateSenderState(.paymentSent)  // Actualizamos el estado del emisor después de enviar el pago
         }
     }
     
@@ -298,6 +360,24 @@ struct PaymentView: View {
         return Int(amount / 10)  // Ejemplo: 1 token por cada 10 euros
     }
     
+    func processPaymentCompletionForSender() {
+        // Indicar que la transacción ha sido completada
+        multipeerManager.updateSenderState(.paymentCompleted)
+
+        // Calcular los tokens ganados
+        let tokens = calculateTokens(for: Double(amount) ?? 0)
+        tokensEarned = tokens  // Actualizar la variable de tokens en el emisor
+
+        // Mostrar el check de éxito y ocultar el ProgressView
+        showSuccessCheckmark = true
+
+        // Cerrar la pantalla automáticamente después de 3 segundos
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            // Cerrar la modal
+            presentationMode.wrappedValue.dismiss()
+        }
+    }
+    
     func processReceivedPayment() {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 paymentSent = true
@@ -318,7 +398,8 @@ struct PaymentView: View {
 
                 // Mostrar el check de éxito y ocultar el ProgressView
                 showSuccessCheckmark = true
-
+//                multipeerManager.updateSenderState(.paymentCompleted)  // Actualizamos el estado a completado
+                
                 // Cerrar la pantalla automáticamente después de 3 segundos
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     // Cerrar la modal

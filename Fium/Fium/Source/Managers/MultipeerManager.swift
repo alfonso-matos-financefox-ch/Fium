@@ -237,7 +237,7 @@ class MultipeerManager: NSObject, ObservableObject {
             
             print("Solicitud de pago aceptada y enviada al emisor con detalles de la transacción")
             self.statusMessage = "Solicitud de pago aceptada y detalles enviados"
-            updateReceiverState(.paymentAccepted)
+//            updateReceiverState(.paymentAccepted)
         } catch let error {
             print("Error al enviar la aceptación: \(error)")
             self.statusMessage = "Error al enviar aceptación: \(error.localizedDescription)"
@@ -338,7 +338,7 @@ extension MultipeerManager: MCSessionDelegate {
                             self.isWaitingForTransfer = true  // Mostrar la interfaz de espera
                             // Ahora el receptor puede aceptar la solicitud
                             // Si acepta, llamamos a una función para enviar la aceptación de vuelta al emisor
-                            self.sendAcceptanceToSender()
+//                            self.sendAcceptanceToSender()
                         } else if role == "receiver" {
                             self.updateSenderState(.waitingForPaymentApproval)
                             print("role receiver")
