@@ -30,7 +30,8 @@ class MultipeerManager: NSObject, ObservableObject {
     @Published var senderState: SenderState = .idle
     @Published var receiverState: ReceiverState = .idle
     
-    @Published var selectedRole: String = "none"  // o "receiver"
+    @Published var selectedRole: String = "none"  // sender o "receiver"
+    @Published var isInPaymentView: Bool = false
     
     var audioPlayer: AVAudioPlayer?
     var deviceIdentifier: String
@@ -93,6 +94,7 @@ class MultipeerManager: NSObject, ObservableObject {
         advertiser.stopAdvertisingPeer()
         browser.stopBrowsingForPeers()
         session.disconnect()
+        print("stop session")
     }
 
     func sendPaymentRequest(_ paymentRequest: PaymentRequest) {
@@ -276,7 +278,22 @@ extension MultipeerManager: MCSessionDelegate {
                 if peerID == self.myPeerID {
                     // Si es tu propio dispositivo, reinicia la publicidad y búsqueda de peers
                     print("Tu dispositivo se ha desconectado. Reiniciando publicidad y búsqueda de peers.")
-                    self.restartConnection()
+                    self.statusMessage = "Me he desconectado, procedo a reconectarme de nuevo"
+                    if self.isInPaymentView {
+                        print("Estamos en la vista de Payment, reiniciando publicidad y búsqueda de peers.")
+                        self.restartConnection()
+                    } else {
+                        print("No estamos en la vista de Payment, no reiniciar conexión.")
+                        self.stop()
+                    }
+                } else if session.connectedPeers.isEmpty { // Asegúrate de no reconectar si has salido de la vista de Payment
+                    if self.isInPaymentView {
+                        print("Intentando reconectar al peer \(peerID.displayName)...")
+                        self.browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+                    } else {
+                        print("No reconectar, estamos fuera de la vista de Payment.")
+                        self.stop()
+                    }
                 } else {
                     // Intentar reconectar automáticamente al peer que se desconectó
                     print("Intentando reconectar al peer \(peerID.displayName)...")
@@ -311,9 +328,10 @@ extension MultipeerManager: MCSessionDelegate {
     func restartConnection() {
         // Detener servicios actuales
         self.stop() // Este es tu método que detiene advertiser, browser y desconecta la sesión
-
+        self.statusMessage = "desconecto todo"
         // Reiniciar todo desde cero
         self.start() // Vuelve a empezar a anunciar y buscar peers
+        self.statusMessage = "me reconecto"
     }
     
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {

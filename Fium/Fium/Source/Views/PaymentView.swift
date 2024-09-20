@@ -27,6 +27,7 @@ struct PaymentView: View {
     @State private var isReceiver = false         // Define si este usuario es receptor
     @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
 
+    
     var body: some View {
         VStack(spacing: 20) {
             // Selección de rol
@@ -194,7 +195,7 @@ struct PaymentView: View {
                         .background(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
                         .cornerRadius(10)
                 }
-                .disabled(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment)
+                .disabled(amount.isEmpty || concept.isEmpty || isSendingPayment)  // Aquí hemos eliminado la verificación de conexión
             }
 
             Spacer()
@@ -208,9 +209,11 @@ struct PaymentView: View {
         .padding()
         .navigationTitle("Realizar Pago")
         .onAppear {
+            multipeerManager.isInPaymentView = true
             multipeerManager.start()
         }
         .onDisappear {
+            multipeerManager.isInPaymentView = false
             multipeerManager.stop()
         }
         .onReceive(multipeerManager.$receivedPaymentRequest) { paymentRequest in
