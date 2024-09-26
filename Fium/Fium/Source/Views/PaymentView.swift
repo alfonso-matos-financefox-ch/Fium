@@ -22,6 +22,7 @@ struct PaymentView: View {
     @State private var alertMessage = ""
     @State private var showSuccessCheckmark = false  // Nueva variable para mostrar la animación de éxito
     @State private var tokensEarned = 0
+    @State private var showRejectionAlert = false
     
     @State private var selectedRole: String = "none"  // Rol seleccionado por el usuario (emisor o receptor)
 //    @State private var isReceiver = false         // Define si este usuario es receptor
@@ -115,8 +116,9 @@ struct PaymentView: View {
                 .cornerRadius(10)
                 
                 Button("Rechazar Pago") {
+                    multipeerManager.sendRejectionToSender()
                     multipeerManager.receivedPaymentRequest = nil
-                    multipeerManager.updateReceiverState(.idle)
+                    // No es necesario actualizar el estado aquí, ya se hace en sendRejectionToSender
                 }
                 .padding()
                 .background(Color.red)
@@ -238,6 +240,10 @@ struct PaymentView: View {
                     presentationMode.wrappedValue.dismiss()
                 }
             }
+            if newValue == .paymentRejected {
+                showRejectionAlert = true
+                isSendingPayment = false  // Restablecer el estado de envío
+            }
         }
         // Alertas y hojas
         .alert(isPresented: $showReceivedRequest) {
@@ -268,6 +274,17 @@ struct PaymentView: View {
         }
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
+        .alert(isPresented: $showRejectionAlert) {
+            Alert(
+                title: Text("Pago Rechazado"),
+                message: Text("El receptor ha rechazado tu solicitud de pago."),
+                dismissButton: .default(Text("OK")) {
+                    // Opcional: Restablecer estados adicionales si es necesario
+                    resetForm()
+                    multipeerManager.updateSenderState(.idle)
+                }
+            )
         }
     }
 

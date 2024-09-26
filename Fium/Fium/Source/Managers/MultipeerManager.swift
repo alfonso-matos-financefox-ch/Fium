@@ -212,7 +212,29 @@ class MultipeerManager: NSObject, ObservableObject {
         }
     }
 
-    
+    func sendRejectionToSender() {
+        // Crear el mensaje de rechazo
+        let rejectionData: [String: Any] = [
+            "status": "rejected"
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: rejectionData, options: .fragmentsAllowed)
+            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            
+            print("Notificación de rechazo enviada al emisor")
+            DispatchQueue.main.async {
+                self.statusMessage = "Notificación de rechazo enviada al emisor"
+                self.updateReceiverState(.idle)  // Actualizar el estado del receptor a idle
+            }
+        } catch let error {
+            print("Error al enviar la notificación de rechazo: \(error)")
+            DispatchQueue.main.async {
+                self.statusMessage = "Error al enviar notificación de rechazo: \(error.localizedDescription)"
+            }
+        }
+    }
+
     func sendTransactionNotification(amount: Double, recipient: String) {
         let content = UNMutableNotificationContent()
         content.title = "Pago Realizado"
@@ -415,27 +437,38 @@ extension MultipeerManager: MCSessionDelegate {
                     }
                     
                     // 3. Gestión de la aceptación de pago
-                    if let status = receivedData["status"] as? String, status == "accepted" {
+                    if let status = receivedData["status"] as? String {
                         DispatchQueue.main.async {
-                            print("Pago aceptado por el receptor")
-                            self.updateSenderState(.paymentAccepted)
-                            self.statusMessage = "Pago aceptado por el receptor"
-                            
-                            // Asegúrate de que recibes la solicitud de pago de vuelta
-                            if let paymentData = receivedData["paymentRequest"] as? String,
-                               let decodedData = Data(base64Encoded: paymentData) {
-                                do {
-                                    let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
-                                    self.statusMessage = "Entra en paymentRequest, antes de completePayment"
-                                    self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
-                                } catch {
-                                    self.statusMessage = "Error al decodificar paymentRequest"
-                                    print("Error al decodificar paymentRequest: \(error)")
+                            if status == "accepted" {
+                                print("Pago aceptado por el receptor")
+                                self.updateSenderState(.paymentAccepted)
+                                self.statusMessage = "Pago aceptado por el receptor"
+                                
+                                // Asegúrate de que recibes la solicitud de pago de vuelta
+                                if let paymentData = receivedData["paymentRequest"] as? String,
+                                   let decodedData = Data(base64Encoded: paymentData) {
+                                    do {
+                                        let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
+                                        self.statusMessage = "Entra en paymentRequest, antes de completePayment"
+                                        self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
+                                    } catch {
+                                        self.statusMessage = "Error al decodificar paymentRequest"
+                                        print("Error al decodificar paymentRequest: \(error)")
+                                    }
+                                } else {
+                                    self.statusMessage = "NO Entra en paymentRequest"
                                 }
-                            } else {
-                                self.statusMessage = "NO Entra en paymentRequest"
+                            } else if status == "rejected" {
+                                print("Pago rechazado por el receptor")
+                                self.updateSenderState(.paymentRejected)
+                                self.statusMessage = "Pago rechazado por el receptor"
+                                
+                                // Opcional: Notificar al usuario
+                                // Puedes agregar una notificación local o actualizar la interfaz
                             }
                         }
+                        
+                        
                     }
                 }
             }
