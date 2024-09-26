@@ -13,7 +13,7 @@ import UserNotifications
 struct FiumApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 //    var bonjourService: BonjourService?
-    @StateObject private var bluetoothManager = BluetoothManager() // Instancia de BluetoothManager
+//    @StateObject private var bluetoothManager = BluetoothManager() // Instancia de BluetoothManager
     
     init() {
         // Configura Firebase
@@ -28,7 +28,7 @@ struct FiumApp: App {
     var body: some Scene {
         WindowGroup {
             LoginView()
-            .environmentObject(bluetoothManager)
+//            .environmentObject(bluetoothManager)
         }
     }
 

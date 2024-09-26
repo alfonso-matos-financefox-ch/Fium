@@ -13,7 +13,7 @@ struct PaymentView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var amount = ""
     @State private var concept = ""
-    @StateObject private var multipeerManager = MultipeerManager()
+//    @StateObject private var multipeerManager = MultipeerManager()
     @State private var showConfirmation = false
     @State private var showReceivedRequest = false
     @State private var isSendingPayment = false
@@ -27,6 +27,15 @@ struct PaymentView: View {
     @State private var isReceiver = false         // Define si este usuario es receptor
     @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
 
+    @StateObject private var bluetoothManager = BluetoothManager() // Bluetooth por defecto
+    @StateObject private var nfcManager = NFCManager()  // NFC manager
+    @State private var communicationManager: PaymentCommunicationManager = NFCManager()
+    
+//    // El inicializador
+//    init(communicationManager: PaymentCommunicationManager) {
+//        self.communicationManager = communicationManager
+//    }
+    
     var body: some View {
         VStack(spacing: 20) {
             // Selección de rol
@@ -39,20 +48,36 @@ struct PaymentView: View {
             .padding()
             .onChange(of: selectedRole) { oldValue, newValue in
                 if newValue != "none" {  // Solo proceder si han seleccionado un rol
-                    multipeerManager.selectedRole = newValue  // Actualiza el rol en el manager
-                    if newValue == "receiver" {
-                        isReceiver = true
-                        multipeerManager.updateReceiverState(.roleSelectedReceiver)
-                        multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
-                    } else if newValue == "sender" {
-                        isReceiver = false
-                        multipeerManager.updateSenderState(.roleSelectedSender)
-                        multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
+                    communicationManager.selectedRole = newValue  // Actualiza el rol en el manager
+                    // Muestra un mensaje si aún no se ha detectado el tag NFC
+                    if communicationManager.detectedTag == nil {
+                        communicationManager.statusMessage = "Esperando tag NFC..."
+                    }
+                    if let detectedTag = communicationManager.detectedTag {  // Usar el tag almacenado
+                        
+                        if newValue == "receiver" {
+                            isReceiver = true
+                            communicationManager.updateReceiverState(.roleSelectedReceiver)
+                            communicationManager.sendRoleAndPaymentRequest(tag: detectedTag,role: "receiver", paymentRequest: nil)
+                        } else if newValue == "sender" {
+                            isReceiver = false
+                            communicationManager.updateSenderState(.roleSelectedSender)
+                            communicationManager.sendRoleAndPaymentRequest(tag: detectedTag, role: "sender", paymentRequest: nil)
+                        }
                     }
                 }
-            }.onReceive(multipeerManager.$selectedRole) { newRole in
-                selectedRole = newRole  // Actualiza el picker con el nuevo rol
             }
+//            .onChange(of: communicationManager.selectedRole) { oldRole, newRole in
+//                // Aquí procesas el cambio del rol seleccionado
+//                if newRole == "sender" {
+//                        isReceiver = true
+//                        communicationManager.updateReceiverState(.roleSelectedReceiver)
+//                } else if newRole == "receiver" {
+//                    isReceiver = false
+//                    communicationManager.updateSenderState(.roleSelectedSender)
+//                }
+//                
+//            }
 
             // Mostrar el estado del emisor
             if !isReceiver {
@@ -89,17 +114,17 @@ struct PaymentView: View {
             }
             
             // Si el rol es "receiver" y ha recibido una solicitud de pago, muestra los detalles
-            if isReceiver && multipeerManager.receiverState == .paymentRequestReceived {
-                Text("Cantidad a pagar: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")€")
-                Text("Concepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")")
+            if isReceiver && communicationManager.receiverState == .paymentRequestReceived {
+                Text("Cantidad a pagar: \(communicationManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")€")
+                Text("Concepto: \(communicationManager.receivedPaymentRequest?.concept ?? "")")
                 
                 Button("Aceptar Pago") {
                     // El receptor acepta el pago
                     authenticateUser { success in
                         if success {
-                            multipeerManager.updateReceiverState(.paymentAccepted)
+                            communicationManager.updateReceiverState(.paymentAccepted)
                             // Envía la aceptación al emisor
-                            multipeerManager.sendAcceptanceToSender()
+                            communicationManager.sendAcceptanceToSender()
                             processReceivedPayment()
                         } else {
                             alertMessage = "Autenticación fallida."
@@ -113,8 +138,8 @@ struct PaymentView: View {
                 .cornerRadius(10)
                 
                 Button("Rechazar Pago") {
-                    multipeerManager.receivedPaymentRequest = nil
-                    multipeerManager.updateReceiverState(.idle)
+                    communicationManager.receivedPaymentRequest = nil
+                    communicationManager.updateReceiverState(.idle)
                 }
                 .padding()
                 .background(Color.red)
@@ -126,30 +151,37 @@ struct PaymentView: View {
                 Text("Esperando pago del emisor...")
                     .font(.headline)
                     .foregroundColor(.green)
-                Text("Conectado con: \(multipeerManager.discoveredPeer?.displayName ?? "Desconocido")")
-                    .foregroundColor(.green)
-                    .transition(.opacity)
-                    .animation(.easeIn, value: multipeerManager.discoveredPeer)
+                if communicationManager.isReadyForPayment == true {
+                    Text("Conectado vía NFC")
+                        .foregroundColor(.green)
+                        .transition(.opacity)
+                        .animation(.easeIn, value: true)
+                } else {
+                    Text("Esperando conexión NFC...")
+                        .foregroundColor(.orange)
+                        .transition(.opacity)
+                        .animation(.easeOut, value: true)
+                }
             }
             
-            if multipeerManager.peerName != "Alfonso" {  // Asegúrate de que el valor predeterminado ha cambiado
-                VStack {
-                    Text("Conectado con: \(multipeerManager.peerName)")
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                        .animation(.easeIn, value: multipeerManager.peerName)
-
-                    Text("Ícono del peer: \(multipeerManager.peerIcon)")
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                        .animation(.easeIn, value: multipeerManager.peerIcon)
-                }
-            } else {
-                Text("Buscando dispositivos cercanos...")
-                    .foregroundColor(.orange)
-                    .transition(.opacity)
-                    .animation(.easeOut, value: multipeerManager.discoveredPeer)
-            }
+//            if communicationManager?.peerName != "Alfonso" {  // Asegúrate de que el valor predeterminado ha cambiado
+//                VStack {
+//                    Text("Conectado con: \(multipeerManager.peerName)")
+//                        .foregroundColor(.green)
+//                        .transition(.opacity)
+//                        .animation(.easeIn, value: multipeerManager.peerName)
+//
+//                    Text("Ícono del peer: \(multipeerManager.peerIcon)")
+//                        .foregroundColor(.green)
+//                        .transition(.opacity)
+//                        .animation(.easeIn, value: multipeerManager.peerIcon)
+//                }
+//            } else {
+//                Text("Buscando dispositivos cercanos...")
+//                    .foregroundColor(.orange)
+//                    .transition(.opacity)
+//                    .animation(.easeOut, value: multipeerManager.discoveredPeer)
+//            }
 
             if isSendingPayment && !showSuccessCheckmark {
                 ProgressView("Enviando pago...")
@@ -191,14 +223,15 @@ struct PaymentView: View {
                         .foregroundColor(.white)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
+                        .background(communicationManager.isConnected == false || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
                         .cornerRadius(10)
                 }
-                .disabled(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment)
+                .disabled(communicationManager.isReadyForPayment == false || amount.isEmpty || concept.isEmpty || isSendingPayment)
+
             }
 
             Spacer()
-            Text(multipeerManager.statusMessage)
+            Text(communicationManager.statusMessage)
                     .font(.headline)
                     .foregroundColor(.blue)
                     .padding()
@@ -208,14 +241,16 @@ struct PaymentView: View {
         .padding()
         .navigationTitle("Realizar Pago")
         .onAppear {
-            multipeerManager.start()
+            communicationManager = nfcManager
+            communicationManager.start()
         }
         .onDisappear {
-            multipeerManager.stop()
+            communicationManager.stop()
         }
-        .onReceive(multipeerManager.$receivedPaymentRequest) { paymentRequest in
-            if paymentRequest != nil {
+        .onChange(of: communicationManager.receivedPaymentRequest) { oldPaymentRequest, newPaymentRequest in
+            if let request = newPaymentRequest {
                 showReceivedRequest = true
+                // Aquí puedes manejar el procesamiento del request
             }
         }
         .onChange(of: isSendingPayment) {  oldValue, newValue in
@@ -223,7 +258,7 @@ struct PaymentView: View {
                 showConfirmation = true
                 resetForm()
             }
-        }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
+        }.onChange(of: communicationManager.senderState) { oldValue, newValue in
             if newValue == .paymentCompleted {
                 showSuccessCheckmark = true
                 processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
@@ -238,7 +273,7 @@ struct PaymentView: View {
         .alert(isPresented: $showReceivedRequest) {
             Alert(
                 title: Text("Solicitud de Pago Recibida"),
-                message: Text("De: \(multipeerManager.receivedPaymentRequest?.senderName ?? "")\nCantidad: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")\nConcepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")"),
+                message: Text("De: \(communicationManager.receivedPaymentRequest?.senderName ?? "")\nCantidad: \(communicationManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")\nConcepto: \(communicationManager.receivedPaymentRequest?.concept ?? "")"),
                 primaryButton: .default(Text("Aceptar"), action: {
                     authenticateUser { success in
                         if success {
@@ -250,7 +285,8 @@ struct PaymentView: View {
                     }
                 }),
                 secondaryButton: .cancel(Text("Rechazar"), action: {
-                    multipeerManager.receivedPaymentRequest = nil
+                    communicationManager.receivedPaymentRequest = nil
+                    communicationManager.updateReceiverState(.idle)
                 })
             )
         }
@@ -268,39 +304,44 @@ struct PaymentView: View {
 
     func sendPayment() {
         if let amountValue = Double(amount) {
-            let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: multipeerManager.myPeerID.displayName)
+            let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: communicationManager.userName)
             
             // Enviar tanto el rol como la solicitud de pago
-            multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: paymentRequest)
+            if let detectedTag = communicationManager.detectedTag {
+                communicationManager.sendRoleAndPaymentRequest(tag: detectedTag, role: "sender", paymentRequest: paymentRequest)
+            }
             
             isSendingPayment = true
 
             // Registrar la transacción localmente
-            multipeerManager.statusMessage = "Registrar la transaccion localmente"
-            let transaction = Transaction(id: UUID(), name: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue, concept: concept, date: Date(), type: .payment)
+            communicationManager.statusMessage = "Registrar la transaccion localmente"
+            let transaction = Transaction(id: UUID(), name: communicationManager.userName, amount: amountValue, concept: concept, date: Date(), type: .payment)
             TransactionManager.shared.addTransaction(transaction)
 
             // Actualizar los tokens de ambos usuarios (puedes definir la lógica para sumar tokens aquí)
-            updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
+            updateTokens(for: communicationManager.userName, amount: amountValue)
 
-            sendTransactionNotification(amount: amountValue, recipient: multipeerManager.discoveredPeer?.displayName ?? "Desconocido")
-            multipeerManager.updateSenderState(.paymentSent)  // Actualizamos el estado del emisor después de enviar el pago
+            sendTransactionNotification(amount: amountValue, recipient: communicationManager.userName)
+
+            communicationManager.updateSenderState(.paymentSent)  // Actualizamos el estado del emisor después de enviar el pago
         }
     }
     
     func sendPreliminaryPaymentRequest() {
         if let amountValue = Double(amount) {
-            let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: multipeerManager.myPeerID.displayName)
+            let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: communicationManager.userName)
             
-            // Enviar la solicitud preliminar al receptor a través de MultipeerManager
-            multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: paymentRequest)
-            
-            isSendingPayment = true  // Indicamos que se está procesando el envío
+            // Enviar la solicitud preliminar al receptor a través de NFCManager
+            if let detectedTag = communicationManager.detectedTag {
+                communicationManager.sendRoleAndPaymentRequest(tag: detectedTag, role: "sender", paymentRequest: paymentRequest)
             }
+            isSendingPayment = true  // Indicamos que se está procesando el envío
+        }
     }
 
+
     func senderStateText() -> String {
-            switch multipeerManager.senderState {
+        switch communicationManager.senderState {
             case .idle:
                 return "Esperando para conectarse..."
             case .roleSelectedSender:
@@ -314,10 +355,11 @@ struct PaymentView: View {
             case .paymentCompleted:
                 return "La transacción ha sido completada."
             }
+           
         }
 
         func receiverStateText() -> String {
-            switch multipeerManager.receiverState {
+            switch communicationManager.receiverState {
             case .idle:
                 return "Esperando para conectarse..."
             case .roleSelectedReceiver:
@@ -330,6 +372,7 @@ struct PaymentView: View {
                 return "El pago ha sido aceptado."
             case .paymentCompleted:
                 return "La transacción ha sido completada."
+            
             }
         }
     
@@ -340,7 +383,7 @@ struct PaymentView: View {
         
         // Aquí sumas los tokens al pagador o al receptor según sea necesario
         print("\(user) ha recibido \(tokensEarned) tokens.")
-        multipeerManager.statusMessage = "\(user) ha recibido \(tokensEarned) tokens."
+        communicationManager.statusMessage = "\(user) ha recibido \(tokensEarned) tokens."
     }
     
     func calculateTokens(for amount: Double) -> Int {
@@ -350,7 +393,7 @@ struct PaymentView: View {
     
     func processPaymentCompletionForSender() {
         // Indicar que la transacción ha sido completada
-        multipeerManager.updateSenderState(.paymentCompleted)
+        communicationManager.updateSenderState(.paymentCompleted)
 
         // Calcular los tokens ganados
         let tokens = calculateTokens(for: Double(amount) ?? 0)
@@ -371,16 +414,16 @@ struct PaymentView: View {
                 paymentSent = true
                 isSendingPayment = false
 
-                if let paymentRequest = multipeerManager.receivedPaymentRequest {
-                    multipeerManager.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
+                if let paymentRequest = communicationManager.receivedPaymentRequest {
+                    communicationManager.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
                     // Simula que los tokens se calculan y se muestran
                     tokensEarned = calculateTokens(for: paymentRequest.amount)
                 }
 
-                multipeerManager.receivedPaymentRequest = nil
-                multipeerManager.playSound(named: "transaction_success")
-                multipeerManager.statusMessage = "Transaction Success"
-                multipeerManager.vibrate()
+                communicationManager.receivedPaymentRequest = nil
+                communicationManager.playSound(named: "transaction_success")
+                communicationManager.statusMessage = "Transaction Success"
+                communicationManager.vibrate()
 
                 
 
@@ -431,4 +474,14 @@ struct PaymentView: View {
 
         UNUserNotificationCenter.current().add(request)
     }
+    
+    // Decide qué tecnología usar (NFC o Bluetooth)
+        func decideManager() {
+            if NFCManager.isNFCSupported {
+                communicationManager = nfcManager
+            } else {
+//                communicationManager = bluetoothManager
+            }
+            communicationManager.start()  // Iniciar el manager seleccionado
+        }
 }
