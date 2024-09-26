@@ -14,6 +14,7 @@ enum SenderState {
     case paymentAccepted       // El receptor ha aceptado la solicitud de pago
     case paymentSent           // El pago ha sido enviado
     case paymentCompleted      // La transacción ha sido completada
+    case paymentRejected
 }
 
 enum ReceiverState {

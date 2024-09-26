@@ -24,7 +24,7 @@ struct PaymentView: View {
     @State private var tokensEarned = 0
     
     @State private var selectedRole: String = "none"  // Rol seleccionado por el usuario (emisor o receptor)
-    @State private var isReceiver = false         // Define si este usuario es receptor
+//    @State private var isReceiver = false         // Define si este usuario es receptor
     @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
 
     
@@ -41,14 +41,15 @@ struct PaymentView: View {
             .onChange(of: selectedRole) { oldValue, newValue in
                 if newValue != "none" {  // Solo proceder si han seleccionado un rol
                     multipeerManager.selectedRole = newValue  // Actualiza el rol en el manager
+                    multipeerManager.sendRole(newValue)  // Llama a sendRole aquí
                     if newValue == "receiver" {
-                        isReceiver = true
+                        multipeerManager.isReceiver = true
                         multipeerManager.updateReceiverState(.roleSelectedReceiver)
-                        multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
+//                        multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
                     } else if newValue == "sender" {
-                        isReceiver = false
+                        multipeerManager.isReceiver = false
                         multipeerManager.updateSenderState(.roleSelectedSender)
-                        multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
+//                        multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
                     }
                 }
             }.onReceive(multipeerManager.$selectedRole) { newRole in
@@ -56,7 +57,7 @@ struct PaymentView: View {
             }
 
             // Mostrar el estado del emisor
-            if !isReceiver {
+            if !multipeerManager.isReceiver {
                 VStack(spacing: 10) {
                     Text("Estado del Emisor:")
                         .font(.headline)
@@ -78,7 +79,7 @@ struct PaymentView: View {
             }
 
             // Mostrar el estado del receptor
-            if isReceiver {
+            if multipeerManager.isReceiver {
                 VStack(spacing: 10) {
                     Text("Estado del Receptor:")
                         .font(.headline)
@@ -90,7 +91,7 @@ struct PaymentView: View {
             }
             
             // Si el rol es "receiver" y ha recibido una solicitud de pago, muestra los detalles
-            if isReceiver && multipeerManager.receiverState == .paymentRequestReceived {
+            if multipeerManager.isReceiver && multipeerManager.receiverState == .paymentRequestReceived {
                 Text("Cantidad a pagar: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")€")
                 Text("Concepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")")
                 
@@ -123,7 +124,7 @@ struct PaymentView: View {
                 .cornerRadius(10)
             }
             
-            if isReceiver && isWaitingForTransfer {
+            if multipeerManager.isReceiver && isWaitingForTransfer {
                 Text("Esperando pago del emisor...")
                     .font(.headline)
                     .foregroundColor(.green)
@@ -176,12 +177,13 @@ struct PaymentView: View {
 
 
             // Botón para enviar solicitud de pago (solo si es emisor)
-            if !isReceiver && !isSendingPayment {
+            if !multipeerManager.isReceiver && !isSendingPayment {
                 Button(action: {
                     authenticateUser { success in
                         if success {
                             // Enviar solicitud preliminar de pago al receptor
-                            sendPreliminaryPaymentRequest()
+//                            sendPreliminaryPaymentRequest()
+                            sendPayment()
                         } else {
                             alertMessage = "Autenticación fallida."
                             showAlert = true
@@ -274,8 +276,8 @@ struct PaymentView: View {
             let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: multipeerManager.myPeerID.displayName)
             
             // Enviar tanto el rol como la solicitud de pago
-            multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: paymentRequest)
-            
+//            multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: paymentRequest)
+            multipeerManager.sendPaymentRequest(paymentRequest)
             isSendingPayment = true
 
             // Registrar la transacción localmente
@@ -316,6 +318,8 @@ struct PaymentView: View {
                 return "El pago ha sido enviado."
             case .paymentCompleted:
                 return "La transacción ha sido completada."
+            case .paymentRejected:
+                    return "El receptor ha rechazado el pago."  // Nuevo mensaje
             }
         }
 

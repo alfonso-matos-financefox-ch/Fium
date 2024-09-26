@@ -101,9 +101,10 @@ class MultipeerManager: NSObject, ObservableObject {
         if !session.connectedPeers.isEmpty {
             do {
                 let data = try JSONEncoder().encode(paymentRequest)
-                try session.send(data, toPeers: session.connectedPeers, with: .reliable)
-                playSound(named: "payment_sent")
-                self.statusMessage = "payment sent"
+                let message = ["paymentRequest": data.base64EncodedString()]
+                let jsonData = try JSONSerialization.data(withJSONObject: message, options: .fragmentsAllowed)
+                try session.send(jsonData, toPeers: session.connectedPeers, with: .reliable)
+                self.statusMessage = "Solicitud de pago enviada"
                 updateSenderState(.paymentSent)
             } catch let error {
                 print("Error sending payment request: \(error.localizedDescription)")
@@ -111,6 +112,7 @@ class MultipeerManager: NSObject, ObservableObject {
             }
         } else {
             print("No hay peers conectados")
+            self.statusMessage = "No hay peers conectados"
         }
     }
     
@@ -146,64 +148,68 @@ class MultipeerManager: NSObject, ObservableObject {
     }
     
     func sendRoleAndPaymentRequest(role: String, paymentRequest: PaymentRequest?) {
-        var message = ["role": role]
-        selectedRole = role // Actualiza el rol seleccionado
-        
-        // Verificar si hay peers conectados
-       if session.connectedPeers.isEmpty {
-           print("No hay peers conectados para enviar el pago.")
-           isSendingPayment = false  // No está enviando si no hay peers
-           return
-       }
-        // Actualizar el estado según el rol seleccionado
-        if role == "sender" {
-            updateSenderState(.waitingForPaymentApproval)
-        } else if role == "receiver" {
-            updateReceiverState(.waitingForPaymentRequest)
-        }
-        
-        // Antes de enviar el pago
-        isSendingPayment = true
-        
-        if let request = paymentRequest {
+        DispatchQueue.main.async {
+            var message = ["role": role]
+            self.selectedRole = role // Actualiza el rol seleccionado
+            print("Emisor envía datos: \(message)")
+            
+            // Verificar si hay peers conectados
+            if self.session.connectedPeers.isEmpty {
+                print("No hay peers conectados para enviar el pago.")
+                self.isSendingPayment = false  // No está enviando si no hay peers
+                return
+            }
+            // Actualizar el estado según el rol seleccionado
+            if role == "sender" {
+                self.updateSenderState(.waitingForPaymentApproval)
+            } else if role == "receiver" {
+                self.updateReceiverState(.waitingForPaymentRequest)
+            }
+            
+            // Antes de enviar el pago
+            self.isSendingPayment = true
+            
+            if let request = paymentRequest {
+                do {
+                    let paymentData = try JSONEncoder().encode(request)
+                    let paymentString = paymentData.base64EncodedString()  // Convertir a String en Base64
+                    message["paymentRequest"] = paymentString  // Asignar como cadena
+                    print("Envío rol: \(paymentString)")
+                    self.statusMessage = "Envío rol: \(paymentString)"
+                } catch {
+                    print("Error al codificar la solicitud de pago: \(error)")
+                }
+            }
+            
             do {
-                let paymentData = try JSONEncoder().encode(request)
-                let paymentString = paymentData.base64EncodedString()  // Convertir a String en Base64
-                message["paymentRequest"] = paymentString  // Asignar como cadena
-                print("Envío rol: \(paymentString)")
-                self.statusMessage = "Envío rol: \(paymentString)"
+                let data = try JSONSerialization.data(withJSONObject: message, options: .fragmentsAllowed)
+                try self.session.send(data, toPeers: self.session.connectedPeers, with: .reliable)
+                self.statusMessage = "sendRoleAndPaymentRequest"
             } catch {
-                print("Error al codificar la solicitud de pago: \(error)")
+                print("Error al enviar datos: \(error)")
             }
         }
-
-        do {
-            let data = try JSONSerialization.data(withJSONObject: message, options: .fragmentsAllowed)
-            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
-            self.statusMessage = "sendRoleAndPaymentRequest"
-        } catch {
-            print("Error al enviar datos: \(error)")
-        }
     }
-    
     
 
     // Método que se ejecuta cuando el receptor acepta la solicitud de pago
     func completePayment(amount: Double, concept: String, recipientName: String) {
         // Realiza la transacción
-        self.statusMessage = "Antes de realizar la transacción en completePayment"
-        let transaction = Transaction(id: UUID(), name: recipientName, amount: amount, concept: concept, date: Date(), type: .payment)
-        TransactionManager.shared.addTransaction(transaction)
-        
-        print("Transacción completa: \(amount)€ para \(recipientName)")
-        self.statusMessage = "Transacción completa: \(amount)€ para \(recipientName)"
-
-        // Envía la notificación de la transacción
-        sendTransactionNotification(amount: amount, recipient: recipientName)
-        
-        isSendingPayment = false
-        updateSenderState(.paymentCompleted)
-        updateReceiverState(.paymentCompleted)
+        DispatchQueue.main.async {
+            self.statusMessage = "Antes de realizar la transacción en completePayment"
+            let transaction = Transaction(id: UUID(), name: recipientName, amount: amount, concept: concept, date: Date(), type: .payment)
+            TransactionManager.shared.addTransaction(transaction)
+            
+            print("Transacción completa: \(amount)€ para \(recipientName)")
+            self.statusMessage = "Transacción completa: \(amount)€ para \(recipientName)"
+            
+            // Envía la notificación de la transacción
+            self.sendTransactionNotification(amount: amount, recipient: recipientName)
+            
+            self.isSendingPayment = false
+            self.updateSenderState(.paymentCompleted)
+            self.updateReceiverState(.paymentCompleted)
+        }
     }
 
     
@@ -337,98 +343,107 @@ extension MultipeerManager: MCSessionDelegate {
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         do {
             if let receivedData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                print("Entra en didReceive: \(receivedData)")
+                print("Receptor recibió datos: \(receivedData)")
                 DispatchQueue.main.async {
-                    self.statusMessage = "Entra en didReceive: \(receivedData)"
-                }
-                
-                // 1. Gestión de roles (emisor/receptor)
-                if let role = receivedData["role"] as? String {
-                    print("Entra en role")
-                    DispatchQueue.main.async {
-                        self.statusMessage = "Entra en role"
-                    }
+                    self.statusMessage = "Datos recibidos: \(receivedData)"
                     
-                    // Actualizar el rol seleccionado en el dispositivo receptor
-                    DispatchQueue.main.async {
-                        if role == "sender" {
-                            self.selectedRole = "receiver"  // Si el otro es "sender", este será "receiver"
-                            self.updateReceiverState(.roleSelectedReceiver)
-                            self.isReceiver = true
-                        } else if role == "receiver" {
-                            self.selectedRole = "sender"  // Si el otro es "receiver", este será "sender"
-                            self.updateSenderState(.roleSelectedSender)
-                            self.isReceiver = false
-                        }
-                    }
                     
-                    DispatchQueue.main.async {
-                        if role == "sender" {
-                            // El receptor espera la solicitud de pago
-                            self.updateReceiverState(.waitingForPaymentRequest)
-                            print("Role sender")
-                            self.statusMessage = "Role sender"
-                            // Si el otro dispositivo es el emisor, este dispositivo será el receptor
-                            self.isReceiver = true
-                            self.isWaitingForTransfer = true  // Mostrar la interfaz de espera
-                            // Ahora el receptor puede aceptar la solicitud
-                            // Si acepta, llamamos a una función para enviar la aceptación de vuelta al emisor
-//                            self.sendAcceptanceToSender()
-                        } else if role == "receiver" {
-                            self.updateSenderState(.waitingForPaymentApproval)
-                            print("role receiver")
-                            self.statusMessage = "role receiver"
-                            // Si el otro dispositivo es el receptor, este dispositivo es el emisor
-                            self.isReceiver = false
-                            self.isWaitingForTransfer = false  // Mostrar la interfaz de envío
-                        }
-                    }
-                }
-                
-                // 2. Gestión de la solicitud de pago (si es receptor)
-                if let paymentData = receivedData["paymentRequest"] as? String,
-                   let decodedData = Data(base64Encoded: paymentData) {
-                    let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
-                    print("Entra en paymentData")
-                    updateReceiverState(.paymentRequestReceived)
-                    DispatchQueue.main.async {
-                        self.statusMessage = "Entra en paymentData"
-                    }
-                    DispatchQueue.main.async {
-                        self.receivedPaymentRequest = paymentRequest
-                        self.discoveredPeer = peerID
-                        self.playSound(named: "payment_received")
-                        self.statusMessage = "payment_received"
-                        self.vibrate()
-                    }
-                }
-                
-                // 3. Gestión de la aceptación de pago
-                if let status = receivedData["status"] as? String, status == "accepted" {
-                    DispatchQueue.main.async {
-                        print("Pago aceptado por el receptor")
-                        self.updateSenderState(.paymentAccepted)
-                        self.statusMessage = "Pago aceptado por el receptor"
-                        
-                        // Asegúrate de que recibes la solicitud de pago de vuelta
-                        if let paymentData = receivedData["paymentRequest"] as? String,
-                           let decodedData = Data(base64Encoded: paymentData) {
-                            do {
-                                let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
-                                self.statusMessage = "Entra en paymentRequest, antes de completePayment"
-                                self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
-                            } catch {
-                                self.statusMessage = "Error al decodificar paymentRequest"
-                                print("Error al decodificar paymentRequest: \(error)")
+                    // 1. Gestión de roles (emisor/receptor)
+                    if let role = receivedData["role"] as? String {
+                        print("Entra en role")
+                        DispatchQueue.main.async {
+                            self.statusMessage = "Rol recibido: \(role)"
+                            
+                            if role == "sender" {
+                                self.selectedRole = "receiver"  // Si el otro es "sender", este será "receiver"
+                                self.updateReceiverState(.roleSelectedReceiver)
+                                self.isReceiver = true
+                            } else if role == "receiver" {
+                                self.selectedRole = "sender"  // Si el otro es "receiver", este será "sender"
+                                self.updateSenderState(.roleSelectedSender)
+                                self.isReceiver = false
                             }
-                        } else {
-                            self.statusMessage = "NO Entra en paymentRequest"
+                        }
+                        
+                        DispatchQueue.main.async {
+                            if role == "sender" {
+                                // El receptor espera la solicitud de pago
+                                self.updateReceiverState(.waitingForPaymentRequest)
+                                print("Role sender")
+                                self.statusMessage = "Role sender"
+                                // Si el otro dispositivo es el emisor, este dispositivo será el receptor
+                                self.isReceiver = true
+                                self.isWaitingForTransfer = true  // Mostrar la interfaz de espera
+                                // Ahora el receptor puede aceptar la solicitud
+                                // Si acepta, llamamos a una función para enviar la aceptación de vuelta al emisor
+                                //                            self.sendAcceptanceToSender()
+                            } else if role == "receiver" {
+                                self.updateSenderState(.waitingForPaymentApproval)
+                                print("role receiver")
+                                self.statusMessage = "role receiver"
+                                // Si el otro dispositivo es el receptor, este dispositivo es el emisor
+                                self.isReceiver = false
+                                self.isWaitingForTransfer = false  // Mostrar la interfaz de envío
+                            }
+                        }
+                    }
+                    
+                    // 2. Gestión de la solicitud de pago (si es receptor)
+                    if let paymentData = receivedData["paymentRequest"] as? String,
+                       let decodedData = Data(base64Encoded: paymentData) {
+                        do {
+                            let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
+                            print("Solicitud de pago decodificada: \(paymentRequest)")
+                            DispatchQueue.main.async {
+                                self.receivedPaymentRequest = paymentRequest
+                                self.updateReceiverState(.paymentRequestReceived)
+                                self.playSound(named: "payment_received")
+                                self.statusMessage = "Solicitud de pago recibida"
+                                self.vibrate()
+                            }
+                        } catch {
+                            print("Error al decodificar la solicitud de pago: \(error)")
+                            DispatchQueue.main.async {
+                                self.statusMessage = "Error al decodificar la solicitud de pago: \(error)"
+                            }
+                        }
+                    } else {
+                        print("No se pudo decodificar la solicitud de pago")
+                        DispatchQueue.main.async {
+                            self.statusMessage = "No se pudo decodificar la solicitud de pago"
+                        }
+                    }
+                    
+                    // 3. Gestión de la aceptación de pago
+                    if let status = receivedData["status"] as? String, status == "accepted" {
+                        DispatchQueue.main.async {
+                            print("Pago aceptado por el receptor")
+                            self.updateSenderState(.paymentAccepted)
+                            self.statusMessage = "Pago aceptado por el receptor"
+                            
+                            // Asegúrate de que recibes la solicitud de pago de vuelta
+                            if let paymentData = receivedData["paymentRequest"] as? String,
+                               let decodedData = Data(base64Encoded: paymentData) {
+                                do {
+                                    let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
+                                    self.statusMessage = "Entra en paymentRequest, antes de completePayment"
+                                    self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
+                                } catch {
+                                    self.statusMessage = "Error al decodificar paymentRequest"
+                                    print("Error al decodificar paymentRequest: \(error)")
+                                }
+                            } else {
+                                self.statusMessage = "NO Entra en paymentRequest"
+                            }
                         }
                     }
                 }
             }
         } catch {
             print("Error al procesar los datos recibidos: \(error)")
+            DispatchQueue.main.async {
+                self.statusMessage = "Error al procesar los datos: \(error)"
+            }
         }
     }
 
@@ -476,7 +491,7 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
         } else {
             print("Evitar conexión con uno mismo")
         }
-        }
+    }
 
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         print("Peer lost: \(peerID.displayName)")
