@@ -8,6 +8,8 @@ import SwiftUI
 
 struct PaymentSuccessView: View {
     var tokensEarned: Int
+    var isReceiver: Bool  // Para ajustar el mensaje basado en el rol
+    var onClose: () -> Void  // Clausura que se llama al cerrar la vista
 
     var body: some View {
         VStack(spacing: 20) {
@@ -17,7 +19,7 @@ struct PaymentSuccessView: View {
                 .frame(width: 80, height: 80)
                 .padding()
 
-            Text("¡Pago realizado con éxito!")
+            Text(isReceiver ? "¡Has recibido un pago con éxito!" : "¡Pago realizado con éxito!")
                 .font(.headline)
                 .foregroundColor(.green)
 
@@ -26,7 +28,7 @@ struct PaymentSuccessView: View {
                 .foregroundColor(.blue)
 
             Button("Cerrar") {
-                // Acción para cerrar la hoja
+                onClose()  // Llama a la acción de cierre
             }
             .padding()
             .background(Color.blue)
@@ -36,3 +38,4 @@ struct PaymentSuccessView: View {
         .padding()
     }
 }
+

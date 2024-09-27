@@ -20,14 +20,14 @@ struct PaymentView: View {
     @State private var paymentSent = false
     @State private var showAlert = false
     @State private var alertMessage = ""
-    @State private var showSuccessCheckmark = false  // Nueva variable para mostrar la animación de éxito
+//    @State private var showSuccessCheckmark = false  // Nueva variable para mostrar la animación de éxito
     @State private var tokensEarned = 0
     @State private var showRejectionAlert = false
     
     @State private var selectedRole: String = "none"  // Rol seleccionado por el usuario (emisor o receptor)
-//    @State private var isReceiver = false         // Define si este usuario es receptor
     @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
     @State private var isReceivingPayment = false  // Nuevo estado para el receptor
+    @State private var showPaymentSuccess = false
 
     
     var body: some View {
@@ -47,11 +47,11 @@ struct PaymentView: View {
                     if newValue == "receiver" {
                         multipeerManager.isReceiver = true
                         multipeerManager.updateReceiverState(.roleSelectedReceiver)
-//                        multipeerManager.sendRoleAndPaymentRequest(role: "receiver", paymentRequest: nil)
+
                     } else if newValue == "sender" {
                         multipeerManager.isReceiver = false
                         multipeerManager.updateSenderState(.roleSelectedSender)
-//                        multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: nil)
+
                     }
                 }
             }.onReceive(multipeerManager.$selectedRole) { newRole in
@@ -92,41 +92,6 @@ struct PaymentView: View {
                 }
             }
             
-//            // Si el rol es "receiver" y ha recibido una solicitud de pago, muestra los detalles
-//            if multipeerManager.isReceiver && multipeerManager.receiverState == .paymentRequestReceived {
-//                Text("Cantidad a pagar: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")€")
-//                Text("Concepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")")
-//                
-//                Button("Aceptar Pago") {
-//                    // El receptor acepta el pago
-//                    authenticateUser { success in
-//                        if success {
-//                            multipeerManager.updateReceiverState(.paymentAccepted)
-//                            // Envía la aceptación al emisor
-//                            multipeerManager.sendAcceptanceToSender()
-//                            processReceivedPayment()
-//                        } else {
-//                            alertMessage = "Autenticación fallida."
-//                            showAlert = true
-//                        }
-//                    }
-//                }
-//                .padding()
-//                .background(Color.green)
-//                .foregroundColor(.white)
-//                .cornerRadius(10)
-//                
-//                Button("Rechazar Pago") {
-//                    multipeerManager.sendRejectionToSender()
-//                    multipeerManager.receivedPaymentRequest = nil
-//                    // No es necesario actualizar el estado aquí, ya se hace en sendRejectionToSender
-//                }
-//                .padding()
-//                .background(Color.red)
-//                .foregroundColor(.white)
-//                .cornerRadius(10)
-//            }
-            
             if multipeerManager.isReceiver && isWaitingForTransfer {
                 Text("Esperando pago del emisor...")
                     .font(.headline)
@@ -156,28 +121,10 @@ struct PaymentView: View {
                     .animation(.easeOut, value: multipeerManager.discoveredPeer)
             }
 
-            if (isSendingPayment || isReceivingPayment) && !showSuccessCheckmark {
+            if (isSendingPayment || isReceivingPayment) && !showPaymentSuccess {
                 ProgressView(multipeerManager.isReceiver ? "Recibiendo pago..." : "Enviando pago...")
                     .padding()
-            } else if showSuccessCheckmark {
-                VStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .resizable()
-                        .foregroundColor(.green)
-                        .frame(width: 60, height: 60)
-                        .transition(.scale)
-                    
-                    Text(multipeerManager.isReceiver ? "¡Has recibido un pago con éxito!" : "¡Pago realizado con éxito!")
-                        .font(.headline)
-                        .foregroundColor(.green)
-                        .padding(.top)
-
-                    Text("Has ganado \(tokensEarned) tokens.")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
-                }
             }
-
 
             // Botón para enviar solicitud de pago (solo si es emisor)
             if !multipeerManager.isReceiver && !isSendingPayment {
@@ -185,7 +132,6 @@ struct PaymentView: View {
                     authenticateUser { success in
                         if success {
                             // Enviar solicitud preliminar de pago al receptor
-//                            sendPreliminaryPaymentRequest()
                             sendPayment()
                         } else {
                             alertMessage = "Autenticación fallida."
@@ -268,6 +214,12 @@ struct PaymentView: View {
                 EmptyView()
                
             }
+        }.sheet(isPresented: $showPaymentSuccess) {
+            PaymentSuccessView(tokensEarned: tokensEarned, isReceiver: multipeerManager.isReceiver) {
+                // Acción para cerrar la hoja
+                showPaymentSuccess = false
+                presentationMode.wrappedValue.dismiss()
+            }
         }
         .onChange(of: isSendingPayment) {  oldValue, newValue in
             if !newValue && paymentSent {
@@ -276,44 +228,19 @@ struct PaymentView: View {
             }
         }.onChange(of: multipeerManager.receiverState) { oldValue, newValue in
             if multipeerManager.isReceiver && newValue == .paymentCompleted {
-                showSuccessCheckmark = true
                 // Aquí puedes llamar a un método específico para el receptor si es necesario
                 // Por ahora, ya estamos manejando el éxito en `processReceivedPayment()`
             }
         }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
             if !multipeerManager.isReceiver && newValue == .paymentCompleted  {
-                showSuccessCheckmark = true
                 processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
                 // Cerrar la pantalla automáticamente después de 3 segundos
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    // Cerrar la modal
-                    presentationMode.wrappedValue.dismiss()
-                }
             }
             if !multipeerManager.isReceiver && newValue == .paymentRejected {
                 showRejectionAlert = true
                 isSendingPayment = false  // Restablecer el estado de envío
             }
         }
-//        .alert(isPresented: $showReceivedRequest) {
-//            Alert(
-//                title: Text("Solicitud de Pago Recibida"),
-//                message: Text("De: \(multipeerManager.receivedPaymentRequest?.senderName ?? "")\nCantidad: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")\nConcepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")"),
-//                primaryButton: .default(Text("Aceptar"), action: {
-//                    authenticateUser { success in
-//                        if success {
-//                            processReceivedPayment()
-//                        } else {
-//                            alertMessage = "Autenticación fallida."
-//                            showAlert = true
-//                        }
-//                    }
-//                }),
-//                secondaryButton: .cancel(Text("Rechazar"), action: {
-//                    multipeerManager.receivedPaymentRequest = nil
-//                })
-//            )
-//        }
         .alert(isPresented: $showConfirmation) {
             Alert(
                 title: Text("Pago Exitoso"),
@@ -343,14 +270,8 @@ struct PaymentView: View {
             let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: multipeerManager.myPeerID.displayName)
             
             // Enviar tanto el rol como la solicitud de pago
-//            multipeerManager.sendRoleAndPaymentRequest(role: "sender", paymentRequest: paymentRequest)
             multipeerManager.sendPaymentRequest(paymentRequest)
             isSendingPayment = true
-
-            // Registrar la transacción localmente
-//            multipeerManager.statusMessage = "Registrar la transaccion localmente"
-//            let transaction = Transaction(id: UUID(), name: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue, concept: concept, date: Date(), type: .payment)
-//            TransactionManager.shared.addTransaction(transaction)
 
             // Actualizar los tokens de ambos usuarios (puedes definir la lógica para sumar tokens aquí)
             updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
@@ -431,7 +352,7 @@ struct PaymentView: View {
         tokensEarned = tokens  // Actualizar la variable de tokens en el emisor
 
         // Mostrar el check de éxito y ocultar el ProgressView
-        showSuccessCheckmark = true
+        showPaymentSuccess = true
 
         // Cerrar la pantalla automáticamente después de 3 segundos
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -461,8 +382,7 @@ struct PaymentView: View {
                 
 
                 // Mostrar el check de éxito y ocultar el ProgressView
-                showSuccessCheckmark = true
-//                multipeerManager.updateSenderState(.paymentCompleted)  // Actualizamos el estado a completado
+                showPaymentSuccess = true
                 
                 // Cerrar la pantalla automáticamente después de 3 segundos
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
