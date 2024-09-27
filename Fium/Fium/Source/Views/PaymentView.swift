@@ -27,6 +27,7 @@ struct PaymentView: View {
     @State private var selectedRole: String = "none"  // Rol seleccionado por el usuario (emisor o receptor)
 //    @State private var isReceiver = false         // Define si este usuario es receptor
     @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
+    @State private var isReceivingPayment = false  // Nuevo estado para el receptor
 
     
     var body: some View {
@@ -155,8 +156,8 @@ struct PaymentView: View {
                     .animation(.easeOut, value: multipeerManager.discoveredPeer)
             }
 
-            if isSendingPayment && !showSuccessCheckmark {
-                ProgressView("Enviando pago...")
+            if (isSendingPayment || isReceivingPayment) && !showSuccessCheckmark {
+                ProgressView(multipeerManager.isReceiver ? "Recibiendo pago..." : "Enviando pago...")
                     .padding()
             } else if showSuccessCheckmark {
                 VStack {
@@ -165,8 +166,8 @@ struct PaymentView: View {
                         .foregroundColor(.green)
                         .frame(width: 60, height: 60)
                         .transition(.scale)
-
-                    Text("¡Pago realizado con éxito!")
+                    
+                    Text(multipeerManager.isReceiver ? "¡Has recibido un pago con éxito!" : "¡Pago realizado con éxito!")
                         .font(.headline)
                         .foregroundColor(.green)
                         .padding(.top)
@@ -273,8 +274,14 @@ struct PaymentView: View {
                 showConfirmation = true
                 resetForm()
             }
+        }.onChange(of: multipeerManager.receiverState) { oldValue, newValue in
+            if multipeerManager.isReceiver && newValue == .paymentCompleted {
+                showSuccessCheckmark = true
+                // Aquí puedes llamar a un método específico para el receptor si es necesario
+                // Por ahora, ya estamos manejando el éxito en `processReceivedPayment()`
+            }
         }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
-            if newValue == .paymentCompleted {
+            if !multipeerManager.isReceiver && newValue == .paymentCompleted  {
                 showSuccessCheckmark = true
                 processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
                 // Cerrar la pantalla automáticamente después de 3 segundos
@@ -283,7 +290,7 @@ struct PaymentView: View {
                     presentationMode.wrappedValue.dismiss()
                 }
             }
-            if newValue == .paymentRejected {
+            if !multipeerManager.isReceiver && newValue == .paymentRejected {
                 showRejectionAlert = true
                 isSendingPayment = false  // Restablecer el estado de envío
             }
@@ -427,17 +434,19 @@ struct PaymentView: View {
         showSuccessCheckmark = true
 
         // Cerrar la pantalla automáticamente después de 3 segundos
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             // Cerrar la modal
             presentationMode.wrappedValue.dismiss()
         }
     }
     
     func processReceivedPayment() {
+        isReceivingPayment = true  // Indicamos que el receptor está procesando el pago
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 paymentSent = true
                 isSendingPayment = false
-
+                isReceivingPayment = false  // Ya no está recibiendo el pago
+                
                 if let paymentRequest = multipeerManager.receivedPaymentRequest {
                     multipeerManager.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
                     // Simula que los tokens se calculan y se muestran
@@ -456,10 +465,10 @@ struct PaymentView: View {
 //                multipeerManager.updateSenderState(.paymentCompleted)  // Actualizamos el estado a completado
                 
                 // Cerrar la pantalla automáticamente después de 3 segundos
-//                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-//                    // Cerrar la modal
-//                    presentationMode.wrappedValue.dismiss()
-//                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    // Cerrar la modal
+                    presentationMode.wrappedValue.dismiss()
+                }
             }
         }
 
