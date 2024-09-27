@@ -28,145 +28,147 @@ struct PaymentView: View {
     @State private var isWaitingForTransfer = false  // Controla si este dispositivo está esperando la transferencia
     @State private var isReceivingPayment = false  // Nuevo estado para el receptor
     @State private var showPaymentSuccess = false
-
+    @State private var showDeviceConnection = true  // Mostrar la modal al iniciar
     
     var body: some View {
         VStack(spacing: 20) {
-            // Selección de rol
-            Picker("Selecciona tu rol", selection: $selectedRole) {
-                Text("Selecciona un rol").tag("none")  // Estado indefinido
-                Text("Emisor").tag("sender")
-                Text("Receptor").tag("receiver")
-            }
-            .pickerStyle(SegmentedPickerStyle())
-            .padding()
-            .onChange(of: selectedRole) { oldValue, newValue in
-                if newValue != "none" {  // Solo proceder si han seleccionado un rol
-                    multipeerManager.selectedRole = newValue  // Actualiza el rol en el manager
-                    multipeerManager.sendRole(newValue)  // Llama a sendRole aquí
-                    if newValue == "receiver" {
-                        multipeerManager.isReceiver = true
-                        multipeerManager.updateReceiverState(.roleSelectedReceiver)
-
-                    } else if newValue == "sender" {
-                        multipeerManager.isReceiver = false
-                        multipeerManager.updateSenderState(.roleSelectedSender)
-
-                    }
+            if !showDeviceConnection {
+                // Selección de rol
+                Picker("Selecciona tu rol", selection: $selectedRole) {
+                    Text("Selecciona un rol").tag("none")  // Estado indefinido
+                    Text("Emisor").tag("sender")
+                    Text("Receptor").tag("receiver")
                 }
-            }.onReceive(multipeerManager.$selectedRole) { newRole in
-                selectedRole = newRole  // Actualiza el picker con el nuevo rol
-            }
-
-            // Mostrar el estado del emisor
-            if !multipeerManager.isReceiver {
-                VStack(spacing: 10) {
-                    Text("Estado del Emisor:")
-                        .font(.headline)
-                        .foregroundColor(.blue)
-                    
-                    Text(senderStateText())  // Función para mostrar el estado textual del emisor
-                        .foregroundColor(.blue)
-                    
-                    // Campo de Monto y Concepto (solo visible si el rol es de emisor)
-                    TextField("Cantidad a pagar", text: $amount)
-                        .keyboardType(.decimalPad)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .disabled(isSendingPayment)
-                    
-                    TextField("Concepto del pago", text: $concept)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .disabled(isSendingPayment)
-                }
-            }
-
-            // Mostrar el estado del receptor
-            if multipeerManager.isReceiver {
-                VStack(spacing: 10) {
-                    Text("Estado del Receptor:")
-                        .font(.headline)
-                        .foregroundColor(.green)
-                    
-                    Text(receiverStateText())  // Función para mostrar el estado textual del receptor
-                        .foregroundColor(.green)
-                }
-            }
-            
-            if multipeerManager.isReceiver && isWaitingForTransfer {
-                Text("Esperando pago del emisor...")
-                    .font(.headline)
-                    .foregroundColor(.green)
-                Text("Conectado con: \(multipeerManager.discoveredPeer?.displayName ?? "Desconocido")")
-                    .foregroundColor(.green)
-                    .transition(.opacity)
-                    .animation(.easeIn, value: multipeerManager.discoveredPeer)
-            }
-            
-            if multipeerManager.peerName != "Alfonso" {  // Asegúrate de que el valor predeterminado ha cambiado
-                VStack {
-                    Text("Conectado con: \(multipeerManager.peerName)")
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                        .animation(.easeIn, value: multipeerManager.peerName)
-
-                    Text("Ícono del peer: \(multipeerManager.peerIcon)")
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                        .animation(.easeIn, value: multipeerManager.peerIcon)
-                }
-            } else {
-                Text("Buscando dispositivos cercanos...")
-                    .foregroundColor(.orange)
-                    .transition(.opacity)
-                    .animation(.easeOut, value: multipeerManager.discoveredPeer)
-            }
-
-            if (isSendingPayment || isReceivingPayment) && !showPaymentSuccess {
-                ProgressView(multipeerManager.isReceiver ? "Recibiendo pago..." : "Enviando pago...")
-                    .padding()
-            }
-
-            // Botón para enviar solicitud de pago (solo si es emisor)
-            if !multipeerManager.isReceiver && !isSendingPayment {
-                Button(action: {
-                    authenticateUser { success in
-                        if success {
-                            // Enviar solicitud preliminar de pago al receptor
-                            sendPayment()
-                        } else {
-                            alertMessage = "Autenticación fallida."
-                            showAlert = true
+                .pickerStyle(SegmentedPickerStyle())
+                .padding()
+                .onChange(of: selectedRole) { oldValue, newValue in
+                    if newValue != "none" {  // Solo proceder si han seleccionado un rol
+                        multipeerManager.selectedRole = newValue  // Actualiza el rol en el manager
+                        multipeerManager.sendRole(newValue)  // Llama a sendRole aquí
+                        if newValue == "receiver" {
+                            multipeerManager.isReceiver = true
+                            multipeerManager.updateReceiverState(.roleSelectedReceiver)
+                            
+                        } else if newValue == "sender" {
+                            multipeerManager.isReceiver = false
+                            multipeerManager.updateSenderState(.roleSelectedSender)
+                            
                         }
                     }
-                }) {
-                    Text("Enviar Solicitud de Pago")
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
-                        .cornerRadius(10)
+                }.onReceive(multipeerManager.$selectedRole) { newRole in
+                    selectedRole = newRole  // Actualiza el picker con el nuevo rol
                 }
-                .disabled(amount.isEmpty || concept.isEmpty || isSendingPayment)  // Aquí hemos eliminado la verificación de conexión
-            }
-
-            Spacer()
-            Text(multipeerManager.statusMessage)
+                
+                // Mostrar el estado del emisor
+                if !multipeerManager.isReceiver {
+                    VStack(spacing: 10) {
+                        Text("Estado del Emisor:")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                        
+                        Text(senderStateText())  // Función para mostrar el estado textual del emisor
+                            .foregroundColor(.blue)
+                        
+                        // Campo de Monto y Concepto (solo visible si el rol es de emisor)
+                        TextField("Cantidad a pagar", text: $amount)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .disabled(isSendingPayment)
+                        
+                        TextField("Concepto del pago", text: $concept)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .disabled(isSendingPayment)
+                    }
+                }
+                
+                // Mostrar el estado del receptor
+                if multipeerManager.isReceiver {
+                    VStack(spacing: 10) {
+                        Text("Estado del Receptor:")
+                            .font(.headline)
+                            .foregroundColor(.green)
+                        
+                        Text(receiverStateText())  // Función para mostrar el estado textual del receptor
+                            .foregroundColor(.green)
+                    }
+                }
+                
+                if multipeerManager.isReceiver && isWaitingForTransfer {
+                    Text("Esperando pago del emisor...")
+                        .font(.headline)
+                        .foregroundColor(.green)
+                    Text("Conectado con: \(multipeerManager.discoveredPeer?.displayName ?? "Desconocido")")
+                        .foregroundColor(.green)
+                        .transition(.opacity)
+                        .animation(.easeIn, value: multipeerManager.discoveredPeer)
+                }
+                
+                //            if multipeerManager.peerName != "Alfonso" {  // Asegúrate de que el valor predeterminado ha cambiado
+                //                VStack {
+                //                    Text("Conectado con: \(multipeerManager.peerName)")
+                //                        .foregroundColor(.green)
+                //                        .transition(.opacity)
+                //                        .animation(.easeIn, value: multipeerManager.peerName)
+                //
+                //                    Text("Ícono del peer: \(multipeerManager.peerIcon)")
+                //                        .foregroundColor(.green)
+                //                        .transition(.opacity)
+                //                        .animation(.easeIn, value: multipeerManager.peerIcon)
+                //                }
+                //            } else {
+                //                Text("Buscando dispositivos cercanos...")
+                //                    .foregroundColor(.orange)
+                //                    .transition(.opacity)
+                //                    .animation(.easeOut, value: multipeerManager.discoveredPeer)
+                //            }
+                
+                if (isSendingPayment || isReceivingPayment) && !showPaymentSuccess {
+                    ProgressView(multipeerManager.isReceiver ? "Recibiendo pago..." : "Enviando pago...")
+                        .padding()
+                }
+                
+                // Botón para enviar solicitud de pago (solo si es emisor)
+                if !multipeerManager.isReceiver && !isSendingPayment {
+                    Button(action: {
+                        authenticateUser { success in
+                            if success {
+                                // Enviar solicitud preliminar de pago al receptor
+                                sendPayment()
+                            } else {
+                                alertMessage = "Autenticación fallida."
+                                showAlert = true
+                            }
+                        }
+                    }) {
+                        Text("Enviar Solicitud de Pago")
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
+                            .cornerRadius(10)
+                    }
+                    .disabled(amount.isEmpty || concept.isEmpty || isSendingPayment)  // Aquí hemos eliminado la verificación de conexión
+                }
+                
+                Spacer()
+                Text(multipeerManager.statusMessage)
                     .font(.headline)
                     .foregroundColor(.blue)
                     .padding()
-            
-            Button(action: {
-                multipeerManager.resetConnection()
-            }) {
-                Text("Resetear Conexión")
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.orange)
-                    .cornerRadius(10)
+                
+//                Button(action: {
+//                    multipeerManager.resetConnection()
+//                }) {
+//                    Text("Resetear Conexión")
+//                        .foregroundColor(.white)
+//                        .padding()
+//                        .background(Color.orange)
+//                        .cornerRadius(10)
+//                }
+//                .padding()
+                
+                Spacer()
             }
-            .padding()
-
-            Spacer()
         }
 
         .padding()
@@ -259,6 +261,16 @@ struct PaymentView: View {
             }
             // Configurar la altura de la modal para que ocupe el 33% de la pantalla
             .presentationDetents([.fraction(0.33)])
+            .presentationDragIndicator(.visible)
+        }.sheet(isPresented: $showDeviceConnection, onDismiss: {
+            // Acciones al cerrar la modal, si es necesario
+        }) {
+            DeviceConnectionView(multipeerManager: multipeerManager) {
+                // Acción al cerrar la modal desde DeviceConnectionView
+                showDeviceConnection = false
+            }
+            // Opcional: Configurar la altura de la modal si lo deseas
+            .presentationDetents([.fraction(0.5)])
             .presentationDragIndicator(.visible)
         }
         

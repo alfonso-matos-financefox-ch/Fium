@@ -12,15 +12,16 @@ import AudioToolbox
 
 class MultipeerManager: NSObject, ObservableObject {
     static let serviceType = "fium-pay"
-    let myPeerID = MCPeerID(displayName: MultipeerManager.getDeviceModelIdentifier())
+//    let myPeerID = MCPeerID(displayName: MultipeerManager.getDeviceModelIdentifier())
+    let myPeerID: MCPeerID
     let session: MCSession
     let advertiser: MCNearbyServiceAdvertiser
     let browser: MCNearbyServiceBrowser
 
     @Published var discoveredPeer: MCPeerID?
     @Published var receivedPaymentRequest: PaymentRequest?
-    @Published var peerName: String = "Alfonso"  // Para almacenar el nombre del peer descubierto
-    @Published var peerIcon: String = "Icon"  // Para almacenar el ícono del peer
+    @Published var peerName: String = ""  // Nombre del peer descubierto
+    @Published var peerIcon: String = "person.circle.fill"  // Ícono del peer
     @Published var isReceiver: Bool = false  // Nuevo estado para el rol del dispositivo
     @Published var isWaitingForTransfer: Bool = false  // Para controlar si está esperando una transferencia
     @Published var isSendingPayment: Bool = false  // Agregar la propiedad para gestionar el estado de envío
@@ -33,15 +34,34 @@ class MultipeerManager: NSObject, ObservableObject {
     @Published var selectedRole: String = "none"  // sender o "receiver"
     @Published var isInPaymentView: Bool = false
     
+    @Published var localPeerName: String
+    @Published var localPeerIcon: String
+    
     var audioPlayer: AVAudioPlayer?
-    var deviceIdentifier: String
+//    var deviceIdentifier: String
     override init() {
         
         statusMessage = "Iniciando publicidad y búsqueda de peers"
         
         // Aquí añadimos el discoveryInfo con el nombre e ícono del usuario
-        self.deviceIdentifier = MultipeerManager.getDeviceModelIdentifier()
-        let discoveryInfo = ["name": deviceIdentifier, "icon": "defaultIcon"]  // Puedes personalizar el ícono
+//        self.deviceIdentifier = MultipeerManager.getDeviceModelIdentifier()
+        // 1. Generamos los datos mock sin usar 'self'
+        let defaultNames = ["Carlos", "María", "Juan", "Ana"]
+        let defaultIcons = ["person.fill", "person.circle.fill", "person.crop.circle.fill", "person.2.fill"]
+        let localName = defaultNames.randomElement() ?? "Usuario"
+        let localIcon = defaultIcons.randomElement() ?? "person.circle.fill"
+
+        // 2. Asignamos los valores a las propiedades de 'self' después
+        self.localPeerName = localName
+        self.localPeerIcon = localIcon
+
+        // 3. Creamos 'myPeerID' sin usar 'self'
+        let myPeerID = MCPeerID(displayName: localName)
+        self.myPeerID = myPeerID
+
+        // 4. Preparamos 'discoveryInfo' sin usar 'self'
+        let discoveryInfo = ["name": localName, "icon": localIcon]
+
 
         self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
         self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: discoveryInfo, serviceType: MultipeerManager.serviceType)
@@ -313,6 +333,8 @@ extension MultipeerManager: MCSessionDelegate {
                 self.statusMessage = "Peer \(peerID.displayName) conectado"
                 self.isWaitingForTransfer = false
                 self.isReceiver = false
+                // Enviar información del perfil al peer conectado
+                self.sendProfileInfo(to: peerID)
             case .connecting:
                 print("Conectando con \(peerID.displayName)...")
                 self.statusMessage = "Conectando con \(peerID.displayName)..."
@@ -385,10 +407,35 @@ extension MultipeerManager: MCSessionDelegate {
         self.statusMessage = "me reconecto"
     }
     
+    func sendProfileInfo(to peerID: MCPeerID) {
+        let profileInfo: [String: Any] = [
+            "type": "profileInfo",
+            "name": self.localPeerName,
+            "icon": self.localPeerIcon
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: profileInfo, options: [])
+            try session.send(data, toPeers: [peerID], with: .reliable)
+        } catch {
+            print("Error al enviar la información del perfil: \(error)")
+        }
+    }
+    
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         do {
             if let receivedData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                 print("Receptor recibió datos: \(receivedData)")
+                // Manejar la información del perfil
+                if let type = receivedData["type"] as? String, type == "profileInfo" {
+                    let name = receivedData["name"] as? String ?? peerID.displayName
+                    let icon = receivedData["icon"] as? String ?? "person.circle.fill"
+                    
+                    DispatchQueue.main.async {
+                        self.peerName = name
+                        self.peerIcon = icon
+                    }
+                }
                 DispatchQueue.main.async {
                     self.statusMessage = "Datos recibidos: \(receivedData)"
                     
@@ -526,24 +573,27 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
        
         // Verifica que no estás conectándote a ti mismo
         if peerID != myPeerID {
+            var peerName = peerID.displayName
+            var peerIcon = "person.circle.fill"
             if let info = info {
                 // Mostrar la información personalizada (nombre e ícono) del peer
-                let peerName = info["name"] ?? "Desconocido"
-                let peerIcon = info["icon"] ?? "defaultIcon"
-                print("Conectado con \(peerName) que tiene el ícono \(peerIcon)")
-                self.statusMessage = "Conectado con \(peerName) que tiene el ícono \(peerIcon)"
+                peerName = info["name"] ?? peerID.displayName
+                peerIcon = info["icon"] ?? "person.circle.fill"
+//                print("Conectado con \(peerName) que tiene el ícono \(peerIcon)")
+//                self.statusMessage = "Conectado con \(peerName) que tiene el ícono \(peerIcon)"
                 DispatchQueue.main.async {
                     self.peerName = peerName
                     self.peerIcon = peerIcon
+                    self.discoveredPeer = peerID
                 }
             }
 
             // Invitar al peer descubierto a la sesión
             browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
             
-            DispatchQueue.main.async {
-                self.discoveredPeer = peerID  // Solo establece este peer si no es tú mismo
-            }
+//            DispatchQueue.main.async {
+//                self.discoveredPeer = peerID  // Solo establece este peer si no es tú mismo
+//            }
         } else {
             print("Evitar conexión con uno mismo")
         }
