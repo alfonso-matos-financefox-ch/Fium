@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1FAD6FD32CA6CD5D00E65073 /* PaymentSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAD6FD22CA6CD5500E65073 /* PaymentSuccessView.swift */; };
+		1FAD6FD52CA6CD7B00E65073 /* PaymentRequestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAD6FD42CA6CD6F00E65073 /* PaymentRequestView.swift */; };
 		1FCF493F2C947D4A00690AD8 /* FiumApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FCF493E2C947D4A00690AD8 /* FiumApp.swift */; };
 		1FCF49412C947D4A00690AD8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FCF49402C947D4A00690AD8 /* ContentView.swift */; };
 		1FCF49432C947D4A00690AD8 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FCF49422C947D4A00690AD8 /* Item.swift */; };
@@ -34,6 +36,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		1FAD6FD22CA6CD5500E65073 /* PaymentSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentSuccessView.swift; sourceTree = "<group>"; };
+		1FAD6FD42CA6CD6F00E65073 /* PaymentRequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentRequestView.swift; sourceTree = "<group>"; };
 		1FCF493B2C947D4A00690AD8 /* Fium.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fium.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1FCF493E2C947D4A00690AD8 /* FiumApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiumApp.swift; sourceTree = "<group>"; };
 		1FCF49402C947D4A00690AD8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -147,6 +151,8 @@
 		1FEE3F032C983BF3009F2280 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				1FAD6FD42CA6CD6F00E65073 /* PaymentRequestView.swift */,
+				1FAD6FD22CA6CD5500E65073 /* PaymentSuccessView.swift */,
 				1FEE3EE22C983805009F2280 /* LoginView.swift */,
 				1FEE3EF02C9838C4009F2280 /* PaymentView.swift */,
 				1FEE3EE42C983824009F2280 /* DashboardView.swift */,
@@ -238,6 +244,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1FEE3EFD2C983BA4009F2280 /* Offer.swift in Sources */,
+				1FAD6FD32CA6CD5D00E65073 /* PaymentSuccessView.swift in Sources */,
 				1FCF49412C947D4A00690AD8 /* ContentView.swift in Sources */,
 				1FEE3EF12C9838C4009F2280 /* PaymentView.swift in Sources */,
 				1FEE3EF92C983B6D009F2280 /* Transaction.swift in Sources */,
@@ -245,6 +252,7 @@
 				1FCF49432C947D4A00690AD8 /* Item.swift in Sources */,
 				1FEE3EE92C983857009F2280 /* RedeemView.swift in Sources */,
 				1FEE3F0E2C987E66009F2280 /* BluetoothManager.swift in Sources */,
+				1FAD6FD52CA6CD7B00E65073 /* PaymentRequestView.swift in Sources */,
 				1FEE3EE52C983824009F2280 /* DashboardView.swift in Sources */,
 				1FEE3F002C983BD0009F2280 /* MultipeerManager.swift in Sources */,
 				1FEE3EED2C98387D009F2280 /* InviteView.swift in Sources */,

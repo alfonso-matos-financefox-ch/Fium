@@ -207,6 +207,18 @@ struct PaymentView: View {
                     .font(.headline)
                     .foregroundColor(.blue)
                     .padding()
+            
+            Button(action: {
+                multipeerManager.resetConnection()
+            }) {
+                Text("Resetear Conexión")
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.orange)
+                    .cornerRadius(10)
+            }
+            .padding()
+
             Spacer()
         }
 

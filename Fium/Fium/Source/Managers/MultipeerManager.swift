@@ -235,6 +235,29 @@ class MultipeerManager: NSObject, ObservableObject {
         }
     }
 
+    func resetConnection() {
+        // Detener los servicios actuales
+        self.stop()
+        
+        // Restablecer las variables de estado
+        DispatchQueue.main.async {
+            self.discoveredPeer = nil
+            self.receivedPaymentRequest = nil
+            self.peerName = "Alfonso"
+            self.peerIcon = "Icon"
+            self.isReceiver = false
+            self.isWaitingForTransfer = false
+            self.isSendingPayment = false
+            self.statusMessage = "Conexión reiniciada"
+            self.senderState = .idle
+            self.receiverState = .idle
+        }
+        
+        // Reiniciar los servicios
+        self.start()
+    }
+
+    
     func sendTransactionNotification(amount: Double, recipient: String) {
         let content = UNMutableNotificationContent()
         content.title = "Pago Realizado"
