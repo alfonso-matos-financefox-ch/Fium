@@ -20,7 +20,6 @@ struct PaymentView: View {
     @State private var paymentSent = false
     @State private var showAlert = false
     @State private var alertMessage = ""
-//    @State private var showSuccessCheckmark = false  // Nueva variable para mostrar la animación de éxito
     @State private var tokensEarned = 0
     @State private var showRejectionAlert = false
     
@@ -32,6 +31,22 @@ struct PaymentView: View {
     
     var body: some View {
         VStack(spacing: 20) {
+            // Encabezado con el ícono del otro usuario
+            HStack {
+                Spacer()
+                Button(action: {
+                    // Acción para mostrar DeviceConnectionView nuevamente
+                    showDeviceConnection = true
+                }) {
+                    if multipeerManager.discoveredPeer != nil {
+                        UserIconView(iconName: multipeerManager.peerIcon, isConnected: true)
+                    } else {
+                        UserIconView(iconName: "person.circle.fill", isConnected: false)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle()) // Para evitar estilos de botón no deseados
+            }
+            .padding([.top, .trailing])
             if !showDeviceConnection {
                 // Selección de rol
                 Picker("Selecciona tu rol", selection: $selectedRole) {
@@ -59,113 +74,68 @@ struct PaymentView: View {
                     selectedRole = newRole  // Actualiza el picker con el nuevo rol
                 }
                 
-                // Mostrar el estado del emisor
-                if !multipeerManager.isReceiver {
+                // Mostrar contenido basado en el rol
+                if selectedRole == "sender" {
+                    // Mostrar campos y botón para el emisor
                     VStack(spacing: 10) {
-                        Text("Estado del Emisor:")
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                        
-                        Text(senderStateText())  // Función para mostrar el estado textual del emisor
-                            .foregroundColor(.blue)
-                        
-                        // Campo de Monto y Concepto (solo visible si el rol es de emisor)
                         TextField("Cantidad a pagar", text: $amount)
                             .keyboardType(.decimalPad)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .disabled(isSendingPayment)
-                        
+
                         TextField("Concepto del pago", text: $concept)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .disabled(isSendingPayment)
+
+                        Button(action: {
+                            authenticateUser { success in
+                                if success {
+                                    sendPayment()
+                                } else {
+                                    alertMessage = "Autenticación fallida."
+                                    showAlert = true
+                                }
+                            }
+                        }) {
+                            Text("Enviar Solicitud de Pago")
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
+                                .cornerRadius(10)
+                        }
+                        .disabled(amount.isEmpty || concept.isEmpty || isSendingPayment)
                     }
-                }
-                
-                // Mostrar el estado del receptor
-                if multipeerManager.isReceiver {
+                    .padding()
+                } else if selectedRole == "receiver" {
+                    // Mostrar mensaje para el receptor
                     VStack(spacing: 10) {
-                        Text("Estado del Receptor:")
+                        Text("Esperando una solicitud de pago de \(multipeerManager.peerName)...")
                             .font(.headline)
                             .foregroundColor(.green)
-                        
-                        Text(receiverStateText())  // Función para mostrar el estado textual del receptor
-                            .foregroundColor(.green)
                     }
+                    .padding()
+                } else {
+                    // Cuando no se ha seleccionado ningún rol
+                    Text("Por favor, selecciona tu rol para continuar.")
+                        .foregroundColor(.gray)
+                        .padding()
                 }
-                
-                if multipeerManager.isReceiver && isWaitingForTransfer {
-                    Text("Esperando pago del emisor...")
-                        .font(.headline)
-                        .foregroundColor(.green)
-                    Text("Conectado con: \(multipeerManager.discoveredPeer?.displayName ?? "Desconocido")")
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                        .animation(.easeIn, value: multipeerManager.discoveredPeer)
-                }
-                
-                //            if multipeerManager.peerName != "Alfonso" {  // Asegúrate de que el valor predeterminado ha cambiado
-                //                VStack {
-                //                    Text("Conectado con: \(multipeerManager.peerName)")
-                //                        .foregroundColor(.green)
-                //                        .transition(.opacity)
-                //                        .animation(.easeIn, value: multipeerManager.peerName)
-                //
-                //                    Text("Ícono del peer: \(multipeerManager.peerIcon)")
-                //                        .foregroundColor(.green)
-                //                        .transition(.opacity)
-                //                        .animation(.easeIn, value: multipeerManager.peerIcon)
-                //                }
-                //            } else {
-                //                Text("Buscando dispositivos cercanos...")
-                //                    .foregroundColor(.orange)
-                //                    .transition(.opacity)
-                //                    .animation(.easeOut, value: multipeerManager.discoveredPeer)
-                //            }
-                
+
+                Spacer()
+                                
                 if (isSendingPayment || isReceivingPayment) && !showPaymentSuccess {
                     ProgressView(multipeerManager.isReceiver ? "Recibiendo pago..." : "Enviando pago...")
                         .padding()
                 }
                 
-                // Botón para enviar solicitud de pago (solo si es emisor)
-                if !multipeerManager.isReceiver && !isSendingPayment {
-                    Button(action: {
-                        authenticateUser { success in
-                            if success {
-                                // Enviar solicitud preliminar de pago al receptor
-                                sendPayment()
-                            } else {
-                                alertMessage = "Autenticación fallida."
-                                showAlert = true
-                            }
-                        }
-                    }) {
-                        Text("Enviar Solicitud de Pago")
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(multipeerManager.discoveredPeer == nil || amount.isEmpty || concept.isEmpty || isSendingPayment ? Color.gray : Color.blue)
-                            .cornerRadius(10)
-                    }
-                    .disabled(amount.isEmpty || concept.isEmpty || isSendingPayment)  // Aquí hemos eliminado la verificación de conexión
-                }
-                
                 Spacer()
-                Text(multipeerManager.statusMessage)
-                    .font(.headline)
-                    .foregroundColor(.blue)
-                    .padding()
+//                Text(multipeerManager.statusMessage)
+//                    .font(.headline)
+//                    .foregroundColor(.blue)
+//                    .padding()
                 
-//                Button(action: {
-//                    multipeerManager.resetConnection()
-//                }) {
-//                    Text("Resetear Conexión")
-//                        .foregroundColor(.white)
-//                        .padding()
-//                        .background(Color.orange)
-//                        .cornerRadius(10)
-//                }
-//                .padding()
+
                 
                 Spacer()
             }
@@ -303,41 +273,41 @@ struct PaymentView: View {
             }
     }
 
-    func senderStateText() -> String {
-            switch multipeerManager.senderState {
-            case .idle:
-                return "Esperando para conectarse..."
-            case .roleSelectedSender:
-                return "Rol seleccionado: Emisor"
-            case .waitingForPaymentApproval:
-                return "Esperando que el receptor acepte el pago..."
-            case .paymentAccepted:
-                return "El pago ha sido aceptado por el receptor."
-            case .paymentSent:
-                return "El pago ha sido enviado."
-            case .paymentCompleted:
-                return "La transacción ha sido completada."
-            case .paymentRejected:
-                return "El receptor ha rechazado el pago."  // Nuevo mensaje
-            }
-        }
-
-        func receiverStateText() -> String {
-            switch multipeerManager.receiverState {
-            case .idle:
-                return "Esperando para conectarse..."
-            case .roleSelectedReceiver:
-                return "Rol seleccionado: Receptor"
-            case .waitingForPaymentRequest:
-                return "Esperando la solicitud de pago del emisor..."
-            case .paymentRequestReceived:
-                return "Solicitud de pago recibida."
-            case .paymentAccepted:
-                return "El pago ha sido aceptado."
-            case .paymentCompleted:
-                return "La transacción ha sido completada."
-            }
-        }
+//    func senderStateText() -> String {
+//            switch multipeerManager.senderState {
+//            case .idle:
+//                return "Esperando para conectarse..."
+//            case .roleSelectedSender:
+//                return "Rol seleccionado: Emisor"
+//            case .waitingForPaymentApproval:
+//                return "Esperando que el receptor acepte el pago..."
+//            case .paymentAccepted:
+//                return "El pago ha sido aceptado por el receptor."
+//            case .paymentSent:
+//                return "El pago ha sido enviado."
+//            case .paymentCompleted:
+//                return "La transacción ha sido completada."
+//            case .paymentRejected:
+//                return "El receptor ha rechazado el pago."  // Nuevo mensaje
+//            }
+//        }
+//
+//        func receiverStateText() -> String {
+//            switch multipeerManager.receiverState {
+//            case .idle:
+//                return "Esperando para conectarse..."
+//            case .roleSelectedReceiver:
+//                return "Rol seleccionado: Receptor"
+//            case .waitingForPaymentRequest:
+//                return "Esperando la solicitud de pago del emisor..."
+//            case .paymentRequestReceived:
+//                return "Solicitud de pago recibida."
+//            case .paymentAccepted:
+//                return "El pago ha sido aceptado."
+//            case .paymentCompleted:
+//                return "La transacción ha sido completada."
+//            }
+//        }
     
     func updateTokens(for user: String, amount: Double) {
         // Actualiza la lógica de tokens, dependiendo de tu modelo
