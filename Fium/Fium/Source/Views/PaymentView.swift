@@ -250,17 +250,16 @@ struct PaymentView: View {
         }
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-        }
-        .alert(isPresented: $showRejectionAlert) {
-            Alert(
-                title: Text("Pago Rechazado"),
-                message: Text("El receptor ha rechazado tu solicitud de pago."),
-                dismissButton: .default(Text("OK")) {
-                    // Opcional: Restablecer estados adicionales si es necesario
-                    resetForm()
-                    multipeerManager.updateSenderState(.idle)
-                }
-            )
+        }.sheet(isPresented: $showRejectionAlert) {
+            PaymentRejectedView {
+                // Acción al cerrar la modal
+                showRejectionAlert = false
+                resetForm()
+                multipeerManager.updateSenderState(.idle)
+            }
+            // Configurar la altura de la modal para que ocupe el 33% de la pantalla
+            .presentationDetents([.fraction(0.33)])
+            .presentationDragIndicator(.visible)
         }
         
     }
