@@ -91,40 +91,40 @@ struct PaymentView: View {
                 }
             }
             
-            // Si el rol es "receiver" y ha recibido una solicitud de pago, muestra los detalles
-            if multipeerManager.isReceiver && multipeerManager.receiverState == .paymentRequestReceived {
-                Text("Cantidad a pagar: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")€")
-                Text("Concepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")")
-                
-                Button("Aceptar Pago") {
-                    // El receptor acepta el pago
-                    authenticateUser { success in
-                        if success {
-                            multipeerManager.updateReceiverState(.paymentAccepted)
-                            // Envía la aceptación al emisor
-                            multipeerManager.sendAcceptanceToSender()
-                            processReceivedPayment()
-                        } else {
-                            alertMessage = "Autenticación fallida."
-                            showAlert = true
-                        }
-                    }
-                }
-                .padding()
-                .background(Color.green)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                
-                Button("Rechazar Pago") {
-                    multipeerManager.sendRejectionToSender()
-                    multipeerManager.receivedPaymentRequest = nil
-                    // No es necesario actualizar el estado aquí, ya se hace en sendRejectionToSender
-                }
-                .padding()
-                .background(Color.red)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
+//            // Si el rol es "receiver" y ha recibido una solicitud de pago, muestra los detalles
+//            if multipeerManager.isReceiver && multipeerManager.receiverState == .paymentRequestReceived {
+//                Text("Cantidad a pagar: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")€")
+//                Text("Concepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")")
+//                
+//                Button("Aceptar Pago") {
+//                    // El receptor acepta el pago
+//                    authenticateUser { success in
+//                        if success {
+//                            multipeerManager.updateReceiverState(.paymentAccepted)
+//                            // Envía la aceptación al emisor
+//                            multipeerManager.sendAcceptanceToSender()
+//                            processReceivedPayment()
+//                        } else {
+//                            alertMessage = "Autenticación fallida."
+//                            showAlert = true
+//                        }
+//                    }
+//                }
+//                .padding()
+//                .background(Color.green)
+//                .foregroundColor(.white)
+//                .cornerRadius(10)
+//                
+//                Button("Rechazar Pago") {
+//                    multipeerManager.sendRejectionToSender()
+//                    multipeerManager.receivedPaymentRequest = nil
+//                    // No es necesario actualizar el estado aquí, ya se hace en sendRejectionToSender
+//                }
+//                .padding()
+//                .background(Color.red)
+//                .foregroundColor(.white)
+//                .cornerRadius(10)
+//            }
             
             if multipeerManager.isReceiver && isWaitingForTransfer {
                 Text("Esperando pago del emisor...")
@@ -233,8 +233,39 @@ struct PaymentView: View {
             multipeerManager.stop()
         }
         .onReceive(multipeerManager.$receivedPaymentRequest) { paymentRequest in
-            if paymentRequest != nil {
+            if multipeerManager.isReceiver, paymentRequest != nil {
                 showReceivedRequest = true
+            }
+        }
+        .sheet(isPresented: $showReceivedRequest) {
+            if let paymentRequest = multipeerManager.receivedPaymentRequest {
+                PaymentRequestView(paymentRequest: paymentRequest, onAccept: {
+                    // Aceptar el pago
+                    authenticateUser { success in
+                        if success {
+                           
+                            multipeerManager.updateReceiverState(.paymentAccepted)
+                            multipeerManager.sendAcceptanceToSender()
+                            processReceivedPayment()
+                            showReceivedRequest = false
+                        } else {
+                            // Manejar autenticación fallida
+                            alertMessage = "Autenticación fallida."
+                            showAlert = true
+                        }
+                    }
+                }, onReject: {
+                    // Rechazar el pago
+                    multipeerManager.sendRejectionToSender()
+                    multipeerManager.receivedPaymentRequest = nil
+                    multipeerManager.updateReceiverState(.idle)
+                    showReceivedRequest = false
+
+                })
+            } else {
+                
+                EmptyView()
+               
             }
         }
         .onChange(of: isSendingPayment) {  oldValue, newValue in
@@ -257,26 +288,25 @@ struct PaymentView: View {
                 isSendingPayment = false  // Restablecer el estado de envío
             }
         }
-        // Alertas y hojas
-        .alert(isPresented: $showReceivedRequest) {
-            Alert(
-                title: Text("Solicitud de Pago Recibida"),
-                message: Text("De: \(multipeerManager.receivedPaymentRequest?.senderName ?? "")\nCantidad: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")\nConcepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")"),
-                primaryButton: .default(Text("Aceptar"), action: {
-                    authenticateUser { success in
-                        if success {
-                            processReceivedPayment()
-                        } else {
-                            alertMessage = "Autenticación fallida."
-                            showAlert = true
-                        }
-                    }
-                }),
-                secondaryButton: .cancel(Text("Rechazar"), action: {
-                    multipeerManager.receivedPaymentRequest = nil
-                })
-            )
-        }
+//        .alert(isPresented: $showReceivedRequest) {
+//            Alert(
+//                title: Text("Solicitud de Pago Recibida"),
+//                message: Text("De: \(multipeerManager.receivedPaymentRequest?.senderName ?? "")\nCantidad: \(multipeerManager.receivedPaymentRequest?.amount ?? 0, specifier: "%.2f")\nConcepto: \(multipeerManager.receivedPaymentRequest?.concept ?? "")"),
+//                primaryButton: .default(Text("Aceptar"), action: {
+//                    authenticateUser { success in
+//                        if success {
+//                            processReceivedPayment()
+//                        } else {
+//                            alertMessage = "Autenticación fallida."
+//                            showAlert = true
+//                        }
+//                    }
+//                }),
+//                secondaryButton: .cancel(Text("Rechazar"), action: {
+//                    multipeerManager.receivedPaymentRequest = nil
+//                })
+//            )
+//        }
         .alert(isPresented: $showConfirmation) {
             Alert(
                 title: Text("Pago Exitoso"),
@@ -298,6 +328,7 @@ struct PaymentView: View {
                 }
             )
         }
+        
     }
 
     func sendPayment() {
@@ -348,7 +379,7 @@ struct PaymentView: View {
             case .paymentCompleted:
                 return "La transacción ha sido completada."
             case .paymentRejected:
-                    return "El receptor ha rechazado el pago."  // Nuevo mensaje
+                return "El receptor ha rechazado el pago."  // Nuevo mensaje
             }
         }
 
@@ -403,7 +434,7 @@ struct PaymentView: View {
     }
     
     func processReceivedPayment() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 paymentSent = true
                 isSendingPayment = false
 
@@ -425,10 +456,10 @@ struct PaymentView: View {
 //                multipeerManager.updateSenderState(.paymentCompleted)  // Actualizamos el estado a completado
                 
                 // Cerrar la pantalla automáticamente después de 3 segundos
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    // Cerrar la modal
-                    presentationMode.wrappedValue.dismiss()
-                }
+//                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+//                    // Cerrar la modal
+//                    presentationMode.wrappedValue.dismiss()
+//                }
             }
         }
 

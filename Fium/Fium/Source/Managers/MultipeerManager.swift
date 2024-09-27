@@ -433,8 +433,8 @@ extension MultipeerManager: MCSessionDelegate {
                         }
                     }
                     
-                    // 2. Gestión de la solicitud de pago (si es receptor)
-                    if let paymentData = receivedData["paymentRequest"] as? String,
+                    // 2. Gestión de la solicitud de pago (solo el receptor debe manejar esto)
+                    if self.isReceiver, let paymentData = receivedData["paymentRequest"] as? String,
                        let decodedData = Data(base64Encoded: paymentData) {
                         do {
                             let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
@@ -459,8 +459,8 @@ extension MultipeerManager: MCSessionDelegate {
                         }
                     }
                     
-                    // 3. Gestión de la aceptación de pago
-                    if let status = receivedData["status"] as? String {
+                    // 3. Gestión de la aceptación o rechazo del pago (solo el emisor debe manejar esto)
+                    if !self.isReceiver, let status = receivedData["status"] as? String {
                         DispatchQueue.main.async {
                             if status == "accepted" {
                                 print("Pago aceptado por el receptor")
