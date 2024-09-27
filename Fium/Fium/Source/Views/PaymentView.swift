@@ -298,9 +298,9 @@ struct PaymentView: View {
             isSendingPayment = true
 
             // Registrar la transacción localmente
-            multipeerManager.statusMessage = "Registrar la transaccion localmente"
-            let transaction = Transaction(id: UUID(), name: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue, concept: concept, date: Date(), type: .payment)
-            TransactionManager.shared.addTransaction(transaction)
+//            multipeerManager.statusMessage = "Registrar la transaccion localmente"
+//            let transaction = Transaction(id: UUID(), name: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue, concept: concept, date: Date(), type: .payment)
+//            TransactionManager.shared.addTransaction(transaction)
 
             // Actualizar los tokens de ambos usuarios (puedes definir la lógica para sumar tokens aquí)
             updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
