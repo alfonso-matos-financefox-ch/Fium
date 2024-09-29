@@ -18,7 +18,7 @@ class MultipeerManager: NSObject, ObservableObject {
     let advertiser: MCNearbyServiceAdvertiser
     let browser: MCNearbyServiceBrowser
 
-    @Published var discoveredPeer: MCPeerID?
+//    @Published var discoveredPeer: MCPeerID?
     @Published var receivedPaymentRequest: PaymentRequest?
     @Published var peerName: String = ""  // Nombre del peer descubierto
     @Published var peerIcon: String = "person.circle.fill"  // Ícono del peer
@@ -36,6 +36,8 @@ class MultipeerManager: NSObject, ObservableObject {
     
     @Published var localPeerName: String
     @Published var localPeerIcon: String
+    @Published var discoveredPeers: [MCPeerID] = []
+    @Published var connectedPeer: MCPeerID?
     
     var audioPlayer: AVAudioPlayer?
 //    var deviceIdentifier: String
@@ -86,6 +88,24 @@ class MultipeerManager: NSObject, ObservableObject {
             print("Nuevo estado del receptor: \(newState)")
         }
     }
+    
+    func getPeerInfo(for peerID: MCPeerID) -> (name: String, icon: String) {
+        // Suponiendo que tienes un diccionario para almacenar la información de cada peer
+        // Por simplicidad, usaremos el displayName y un ícono por defecto
+        let name = peerID.displayName
+        let icon = "person.circle.fill"
+        return (name, icon)
+    }
+
+    
+    func connect(to peerID: MCPeerID) {
+        // Invitar al peer seleccionado a la sesión
+        browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+        DispatchQueue.main.async {
+            self.connectedPeer = peerID
+        }
+    }
+
     
     static func getDeviceModelIdentifier() -> String {
         var systemInfo = utsname()
@@ -261,7 +281,8 @@ class MultipeerManager: NSObject, ObservableObject {
         
         // Restablecer las variables de estado
         DispatchQueue.main.async {
-            self.discoveredPeer = nil
+//            self.discoveredPeer = nil
+            self.connectedPeer = nil
             self.receivedPaymentRequest = nil
             self.peerName = "Alfonso"
             self.peerIcon = "Icon"
@@ -331,6 +352,7 @@ extension MultipeerManager: MCSessionDelegate {
             case .connected:
                 print("Peer \(peerID.displayName) conectado")
                 self.statusMessage = "Peer \(peerID.displayName) conectado"
+                self.connectedPeer = peerID
                 self.isWaitingForTransfer = false
                 self.isReceiver = false
                 // Enviar información del perfil al peer conectado
@@ -345,8 +367,10 @@ extension MultipeerManager: MCSessionDelegate {
                 // Actualizar la interfaz para reflejar que no hay peers conectados
                 self.isWaitingForTransfer = false
                 self.isReceiver = false
-                self.discoveredPeer = nil  // Limpiar el peer descubierto
-                
+//                self.discoveredPeer = nil  // Limpiar el peer descubierto
+                if self.connectedPeer == peerID {
+                    self.connectedPeer = nil
+                }
                 // Verificar si tu dispositivo se ha desconectado
                 if peerID == self.myPeerID {
                     // Si es tu propio dispositivo, reinicia la publicidad y búsqueda de peers
@@ -573,6 +597,11 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
        
         // Verifica que no estás conectándote a ti mismo
         if peerID != myPeerID {
+            DispatchQueue.main.async {
+                if !self.discoveredPeers.contains(peerID) {
+                    self.discoveredPeers.append(peerID)
+                }
+            }
             var peerName = peerID.displayName
             var peerIcon = "person.circle.fill"
             if let info = info {
@@ -601,6 +630,11 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
 
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         print("Peer lost: \(peerID.displayName)")
+        DispatchQueue.main.async {
+            if let index = self.discoveredPeers.firstIndex(of: peerID) {
+                self.discoveredPeers.remove(at: index)
+            }
+        }
     }
 }
 

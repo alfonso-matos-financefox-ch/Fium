@@ -31,11 +31,11 @@ struct DeviceConnectionView: View {
                 ZStack {
                     // Línea base
                     Rectangle()
-                        .fill(multipeerManager.discoveredPeer != nil ? Color.green : Color.orange)
+                        .fill(multipeerManager.connectedPeer != nil ? Color.green : Color.orange)
                         .frame(width: 100, height: 2)
                     
                     // Animación mientras busca
-                    if multipeerManager.discoveredPeer == nil {
+                    if multipeerManager.connectedPeer == nil {
                         // Línea intermitente
                         Rectangle()
                             .fill(Color.orange)
@@ -49,7 +49,7 @@ struct DeviceConnectionView: View {
                 }
                 
                 // Añadir el checkmark debajo de la línea cuando esté conectado
-                if multipeerManager.discoveredPeer != nil {
+                if multipeerManager.connectedPeer != nil {
                     Image(systemName: "checkmark.circle.fill")
                         .resizable()
                         .frame(width: 30, height: 30)
@@ -59,7 +59,7 @@ struct DeviceConnectionView: View {
                 
                 // Perfil del otro usuario (derecha)
                 VStack {
-                    if let discoveredPeer = multipeerManager.discoveredPeer {
+                    if let discoveredPeer = multipeerManager.connectedPeer {
                         Image(systemName: multipeerManager.peerIcon)  // Usa el icono del peer
                             .resizable()
                             .frame(width: 80, height: 80)
@@ -81,7 +81,7 @@ struct DeviceConnectionView: View {
             Spacer()
             
             // Botón para cerrar la modal si es necesario
-            if multipeerManager.discoveredPeer != nil {
+            if multipeerManager.connectedPeer != nil {
                 Button("Continuar") {
                     onClose()
                 }
@@ -101,6 +101,14 @@ struct DeviceConnectionView: View {
             }
             .padding()
             Spacer()
+        }.onAppear {
+            if multipeerManager.discoveredPeers.count == 1 {
+                // Conectar automáticamente al único peer disponible
+                if let peerID = multipeerManager.discoveredPeers.first {
+                    multipeerManager.connect(to: peerID)
+                    onClose()
+                }
+            }
         }
         .padding()
     }

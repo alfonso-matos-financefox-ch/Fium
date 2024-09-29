@@ -12,6 +12,7 @@
 		1FAD6FD72CA6F17500E65073 /* PaymentRejectedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAD6FD62CA6F17200E65073 /* PaymentRejectedView.swift */; };
 		1FAD6FD92CA6F43E00E65073 /* DeviceConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAD6FD82CA6F43C00E65073 /* DeviceConnectionView.swift */; };
 		1FAD6FDB2CA701D200E65073 /* UserIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAD6FDA2CA701D000E65073 /* UserIconView.swift */; };
+		1FAD6FDD2CA708C600E65073 /* PeerRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FAD6FDC2CA708C300E65073 /* PeerRowView.swift */; };
 		1FCF493F2C947D4A00690AD8 /* FiumApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FCF493E2C947D4A00690AD8 /* FiumApp.swift */; };
 		1FCF49412C947D4A00690AD8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FCF49402C947D4A00690AD8 /* ContentView.swift */; };
 		1FCF49432C947D4A00690AD8 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FCF49422C947D4A00690AD8 /* Item.swift */; };
@@ -44,6 +45,7 @@
 		1FAD6FD62CA6F17200E65073 /* PaymentRejectedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentRejectedView.swift; sourceTree = "<group>"; };
 		1FAD6FD82CA6F43C00E65073 /* DeviceConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceConnectionView.swift; sourceTree = "<group>"; };
 		1FAD6FDA2CA701D000E65073 /* UserIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserIconView.swift; sourceTree = "<group>"; };
+		1FAD6FDC2CA708C300E65073 /* PeerRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerRowView.swift; sourceTree = "<group>"; };
 		1FCF493B2C947D4A00690AD8 /* Fium.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fium.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1FCF493E2C947D4A00690AD8 /* FiumApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FiumApp.swift; sourceTree = "<group>"; };
 		1FCF49402C947D4A00690AD8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -157,6 +159,7 @@
 		1FEE3F032C983BF3009F2280 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				1FAD6FDC2CA708C300E65073 /* PeerRowView.swift */,
 				1FAD6FDA2CA701D000E65073 /* UserIconView.swift */,
 				1FAD6FD82CA6F43C00E65073 /* DeviceConnectionView.swift */,
 				1FAD6FD62CA6F17200E65073 /* PaymentRejectedView.swift */,
@@ -271,6 +274,7 @@
 				1FEE3EFB2C983B93009F2280 /* PaymentRequest.swift in Sources */,
 				1FEE3EEB2C983868009F2280 /* TransactionsView.swift in Sources */,
 				1FEE3EE72C983843009F2280 /* ProfileView.swift in Sources */,
+				1FAD6FDD2CA708C600E65073 /* PeerRowView.swift in Sources */,
 				1FE516962C9AD4CC00D8870A /* States.swift in Sources */,
 				1FCF493F2C947D4A00690AD8 /* FiumApp.swift in Sources */,
 				1FEE3F0C2C987794009F2280 /* BonjourService.swift in Sources */,

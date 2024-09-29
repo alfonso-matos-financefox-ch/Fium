@@ -38,7 +38,7 @@ struct PaymentView: View {
                     // Acción para mostrar DeviceConnectionView nuevamente
                     showDeviceConnection = true
                 }) {
-                    if multipeerManager.discoveredPeer != nil {
+                    if multipeerManager.connectedPeer != nil {
                         UserIconView(iconName: multipeerManager.peerIcon, isConnected: true)
                     } else {
                         UserIconView(iconName: "person.circle.fill", isConnected: false)
