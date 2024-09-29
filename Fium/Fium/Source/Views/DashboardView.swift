@@ -14,7 +14,7 @@ struct DashboardView: View {
     @State private var showRedeemView = false
     @State private var showInviteView = false
     @State private var showProfileView = false
-
+    @Environment(\.modelContext) private var context
     var tokenBalance: Double {
         transactionManager.transactions.reduce(100) { $0 + $1.amount }
     }

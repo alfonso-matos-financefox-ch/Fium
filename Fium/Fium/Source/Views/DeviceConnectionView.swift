@@ -9,78 +9,56 @@ import SwiftUI
 struct DeviceConnectionView: View {
     @ObservedObject var multipeerManager: MultipeerManager
     var onClose: () -> Void  // Acción para cerrar la modal cuando se completa la conexión
-    
-    @State private var isAnimating = false  // Estado para la animación
-    
+
     var body: some View {
         VStack {
-            Spacer()
-            
             HStack {
-                // Perfil del usuario actual (izquierda)
-                VStack {
-                    Image(systemName: multipeerManager.localPeerIcon)
-                        .resizable()
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.blue)
-                    Text(multipeerManager.localPeerName)
-                        .font(.headline)
-                }
-                
-                // Línea que conecta ambos perfiles
-                ZStack {
-                    // Línea base
-                    Rectangle()
-                        .fill(multipeerManager.discoveredPeer != nil ? Color.green : Color.orange)
-                        .frame(width: 100, height: 2)
-                    
-                    // Animación mientras busca
-                    if multipeerManager.discoveredPeer == nil {
-                        // Línea intermitente
-                        Rectangle()
-                            .fill(Color.orange)
-                            .frame(width: 100, height: 2)
-                            .opacity(isAnimating ? 0.2 : 1.0)
-                            .animation(.linear(duration: 0.5).repeatForever(autoreverses: true), value: isAnimating)
-                            .onAppear {
-                                isAnimating = true
-                            }
+                Spacer()
+                // Botón de resetear conexión
+                Button(action: {
+                    multipeerManager.resetConnection()
+                }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "arrow.circlepath")
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .foregroundColor(.blue)
                     }
                 }
-                
-                // Añadir el checkmark debajo de la línea cuando esté conectado
+                .padding(.trailing)
+            }
+
+            Spacer()
+
+            VStack {
                 if multipeerManager.discoveredPeer != nil {
-                    Image(systemName: "checkmark.circle.fill")
+                    // Mostrar el icono y nombre del usuario conectado
+                    Image(systemName: multipeerManager.peerIcon)
                         .resizable()
-                        .frame(width: 30, height: 30)
+                        .frame(width: 100, height: 100)
                         .foregroundColor(.green)
-                        .padding(.top, 5)
-                }
-                
-                // Perfil del otro usuario (derecha)
-                VStack {
-                    if let discoveredPeer = multipeerManager.discoveredPeer {
-                        Image(systemName: multipeerManager.peerIcon)  // Usa el icono del peer
-                            .resizable()
-                            .frame(width: 80, height: 80)
-                            .foregroundColor(.green)
-                        Text(multipeerManager.peerName)
-                            .font(.headline)
-                    } else {
-                        // Mostrar icono por defecto mientras se busca
-                        Image(systemName: "person.circle.fill")
-                            .resizable()
-                            .frame(width: 80, height: 80)
-                            .foregroundColor(.gray)
-                        Text("Buscando...")
-                            .font(.headline)
-                    }
+                    Text(multipeerManager.peerName)
+                        .font(.headline)
+                        .padding(.top, 8)
+                } else {
+                    // Mostrar el icono por defecto y el texto "Buscando usuario..."
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .frame(width: 100, height: 100)
+                        .foregroundColor(.gray)
+                    Text("Buscando usuario...")
+                        .font(.headline)
+                        .padding(.top, 8)
+                        .foregroundColor(.gray)
                 }
             }
-            
+
             Spacer()
-            
-            // Botón para cerrar la modal si es necesario
+
+            // Botón "Continuar" si estamos conectados
             if multipeerManager.discoveredPeer != nil {
                 Button("Continuar") {
                     onClose()
@@ -90,16 +68,7 @@ struct DeviceConnectionView: View {
                 .foregroundColor(.white)
                 .cornerRadius(10)
             }
-            Button(action: {
-                multipeerManager.resetConnection()
-            }) {
-                Text("Resetear Conexión")
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.orange)
-                    .cornerRadius(10)
-            }
-            .padding()
+
             Spacer()
         }
         .padding()

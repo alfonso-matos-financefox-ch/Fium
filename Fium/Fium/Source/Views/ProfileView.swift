@@ -6,85 +6,61 @@
 //
 
 import SwiftUI
+import SwiftData
+import PhotosUI
 
 struct ProfileView: View {
-    @State private var name = "Carlos García"
-    @State private var email = "carlos@example.com"
-    private var tokenBalance: Double {
-        TransactionManager.shared.transactions.reduce(100) { $0 + $1.amount }
-    }
-    @State private var invitationCount = 5
+    @Environment(\.modelContext) private var context
+    @Query private var users: [User]  // Usamos @Query para obtener el usuario
     @State private var showingEditProfile = false
+    @State private var selectedImageData: Data?
 
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
                 // Foto de Perfil
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .foregroundColor(.blue)
-                    .frame(width: 120, height: 120)
+                if let imageData = users.first?.profileImageData,
+                   let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .clipShape(Circle())
+                        .frame(width: 120, height: 120)
+                        .onTapGesture {
+                            showingEditProfile = true
+                        }
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .foregroundColor(.blue)
+                        .frame(width: 120, height: 120)
+                        .onTapGesture {
+                            showingEditProfile = true
+                        }
+                }
 
                 // Nombre y Correo
-                Text(name)
+                Text(users.first?.name ?? "Nombre no disponible")
                     .font(.title)
-                Text(email)
+                Text(users.first?.email ?? "Email no disponible")
                     .foregroundColor(.gray)
 
-                // Saldo y Invitaciones
-                HStack {
-                    VStack {
-                        Text("Tokens")
-                            .font(.headline)
-                        Text("\(tokenBalance, specifier: "%.2f")")
-                            .font(.title2)
-                    }
-                    Spacer()
-                    VStack {
-                        Text("Invitaciones")
-                            .font(.headline)
-                        Text("\(invitationCount)")
-                            .font(.title2)
-                    }
-                }
-                .padding()
-
-                // Botón de Editar Perfil
-                Button(action: {
-                    showingEditProfile = true
-                }) {
-                    Text("Editar Perfil")
-                        .foregroundColor(.blue)
-                }
-                .sheet(isPresented: $showingEditProfile) {
-                    EditProfileView(name: $name, email: $email)
-                }
+                // Saldo y otras propiedades
+                // Aquí puedes mostrar otras propiedades si lo deseas
 
                 Spacer()
             }
             .padding()
             .navigationTitle("Perfil")
-        }
-    }
-}
-
-struct EditProfileView: View {
-    @Binding var name: String
-    @Binding var email: String
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Información Personal")) {
-                    TextField("Nombre", text: $name)
-                    TextField("Correo Electrónico", text: $email)
-                        .keyboardType(.emailAddress)
+            .sheet(isPresented: $showingEditProfile) {
+                EditProfileView(user: users.first ?? User(email: "", name: "", phoneNumber: ""))
+            }
+            .onAppear {
+                // Si no hay usuario, creamos uno por defecto
+                if users.isEmpty {
+                    let newUser = User(email: "usuario@example.com", name: "Nombre Apellido", phoneNumber: "")
+                    context.insert(newUser)
                 }
             }
-            .navigationTitle("Editar Perfil")
-            .navigationBarItems(trailing: Button("Guardar") {
-                // Acción para guardar cambios (simulada)
-            })
         }
     }
 }

@@ -29,6 +29,7 @@ struct FiumApp: App {
         WindowGroup {
             LoginView()
             .environmentObject(bluetoothManager)
+            .modelContainer(for: User.self)
         }
     }
 

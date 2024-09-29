@@ -6,5 +6,9 @@
 	<array>
 		<string>_fium-pay._tcp.</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Necesitamos acceso a la cámara para que puedas tomar una foto de perfil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Necesitamos acceso a tu biblioteca de fotos para que puedas seleccionar una imagen de perfil.</string>
 </dict>
 </plist>
