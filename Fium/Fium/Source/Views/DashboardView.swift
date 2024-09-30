@@ -6,8 +6,11 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct DashboardView: View {
+    @Query private var users: [User]
+    
     @ObservedObject var transactionManager = TransactionManager.shared
     @State private var showPaymentView = false
     @State private var showTransactionsView = false
@@ -15,6 +18,7 @@ struct DashboardView: View {
     @State private var showInviteView = false
     @State private var showProfileView = false
     @Environment(\.modelContext) private var context
+    
     var tokenBalance: Double {
         transactionManager.transactions.reduce(100) { $0 + $1.amount }
     }
@@ -76,7 +80,12 @@ struct DashboardView: View {
             .navigationTitle("Fium")
             // Navegación a otras vistas
             .sheet(isPresented: $showPaymentView) {
-                PaymentView()
+                if let user = users.first {
+                    let manager = MultipeerManager(user: user)
+                    PaymentView(multipeerManager: manager)
+                } else {
+                    Text("No se encontró el usuario.")
+                }
             }
             .sheet(isPresented: $showTransactionsView) {
                 TransactionsView()
