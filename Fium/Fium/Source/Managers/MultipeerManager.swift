@@ -9,6 +9,7 @@ import Foundation
 import MultipeerConnectivity
 import AVFoundation
 import AudioToolbox
+import SwiftData
 
 class MultipeerManager: NSObject, ObservableObject {
     static let serviceType = "fium-pay"
@@ -20,8 +21,7 @@ class MultipeerManager: NSObject, ObservableObject {
 
     @Published var discoveredPeer: MCPeerID?
     @Published var receivedPaymentRequest: PaymentRequest?
-    @Published var peerName: String = ""  // Nombre del peer descubierto
-    @Published var peerIcon: String = "person.circle.fill"  // Ícono del peer
+   
     @Published var isReceiver: Bool = false  // Nuevo estado para el rol del dispositivo
     @Published var isWaitingForTransfer: Bool = false  // Para controlar si está esperando una transferencia
     @Published var isSendingPayment: Bool = false  // Agregar la propiedad para gestionar el estado de envío
@@ -34,34 +34,33 @@ class MultipeerManager: NSObject, ObservableObject {
     @Published var selectedRole: String = "none"  // sender o "receiver"
     @Published var isInPaymentView: Bool = false
     
+    // Datos del usuario
     @Published var localPeerName: String
     @Published var localPeerIcon: String
+    @Published var localPeerImage: UIImage?
+    
+    // Datos del peer conectado
+    @Published var peerName: String = ""
+    @Published var peerIcon: String = "person.circle.fill"
+    @Published var peerImage: UIImage?
     
     var audioPlayer: AVAudioPlayer?
 //    var deviceIdentifier: String
-    override init() {
-        
-        statusMessage = "Iniciando publicidad y búsqueda de peers"
-        
-        // Aquí añadimos el discoveryInfo con el nombre e ícono del usuario
-//        self.deviceIdentifier = MultipeerManager.getDeviceModelIdentifier()
-        // 1. Generamos los datos mock sin usar 'self'
-        let defaultNames = ["Carlos", "María", "Juan", "Ana"]
-        let defaultIcons = ["person.fill", "person.circle.fill", "person.crop.circle.fill", "person.2.fill"]
-        let localName = defaultNames.randomElement() ?? "Usuario"
-        let localIcon = defaultIcons.randomElement() ?? "person.circle.fill"
+    
+    init(user: User) {
+        // Usar variables temporales para evitar usar 'self' antes de super.init()
+        let name = user.name
+        let icon = "person.circle.fill" // Puedes personalizar esto si tienes un icono diferente
+        let image: UIImage? = user.profileImageData != nil ? UIImage(data: user.profileImageData!) : nil
 
-        // 2. Asignamos los valores a las propiedades de 'self' después
-        self.localPeerName = localName
-        self.localPeerIcon = localIcon
+        // Asignar a las propiedades de 'self'
+        self.localPeerName = name
+        self.localPeerIcon = icon
+        self.localPeerImage = image
 
-        // 3. Creamos 'myPeerID' sin usar 'self'
-        let myPeerID = MCPeerID(displayName: localName)
-        self.myPeerID = myPeerID
-
-        // 4. Preparamos 'discoveryInfo' sin usar 'self'
-        let discoveryInfo = ["name": localName, "icon": localIcon]
-
+        // Inicializar myPeerID y otros componentes de MultipeerConnectivity
+        self.myPeerID = MCPeerID(displayName: name)
+        let discoveryInfo = ["name": name]
 
         self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
         self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: discoveryInfo, serviceType: MultipeerManager.serviceType)
@@ -408,12 +407,18 @@ extension MultipeerManager: MCSessionDelegate {
     }
     
     func sendProfileInfo(to peerID: MCPeerID) {
-        let profileInfo: [String: Any] = [
-            "type": "profileInfo",
-            "name": self.localPeerName,
-            "icon": self.localPeerIcon
-        ]
-        
+        var profileInfo: [String: Any] = [
+                "type": "profileInfo",
+                "name": self.localPeerName,
+            ]
+
+        if let imageData = self.localPeerImage?.jpegData(compressionQuality: 0.8) {
+            profileInfo["imageData"] = imageData.base64EncodedString()
+        } else {
+            // Si no hay imagen, podemos enviar un icono por defecto
+            profileInfo["icon"] = self.localPeerIcon
+        }
+
         do {
             let data = try JSONSerialization.data(withJSONObject: profileInfo, options: [])
             try session.send(data, toPeers: [peerID], with: .reliable)
@@ -429,11 +434,19 @@ extension MultipeerManager: MCSessionDelegate {
                 // Manejar la información del perfil
                 if let type = receivedData["type"] as? String, type == "profileInfo" {
                     let name = receivedData["name"] as? String ?? peerID.displayName
-                    let icon = receivedData["icon"] as? String ?? "person.circle.fill"
+                    var icon = "person.circle.fill"
+                    var image: UIImage? = nil
+                    if let imageDataString = receivedData["imageData"] as? String,
+                       let imageData = Data(base64Encoded: imageDataString) {
+                        image = UIImage(data: imageData)
+                    } else if let receivedIcon = receivedData["icon"] as? String {
+                        icon = receivedIcon
+                    }
                     
                     DispatchQueue.main.async {
                         self.peerName = name
                         self.peerIcon = icon
+                        self.peerImage = image
                     }
                 }
                 DispatchQueue.main.async {

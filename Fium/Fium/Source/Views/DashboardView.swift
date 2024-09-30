@@ -8,6 +8,20 @@
 import SwiftUI
 import SwiftData
 
+import SwiftUI
+
+enum ActiveSheet: Identifiable {
+    case payment
+    case profile
+    case transactions
+    case redeem
+    case invite
+
+    var id: Int {
+        hashValue
+    }
+}
+
 struct DashboardView: View {
     @Query private var users: [User]
     
@@ -18,6 +32,7 @@ struct DashboardView: View {
     @State private var showInviteView = false
     @State private var showProfileView = false
     @Environment(\.modelContext) private var context
+    @State private var activeSheet: ActiveSheet? = nil
     
     var tokenBalance: Double {
         transactionManager.transactions.reduce(100) { $0 + $1.amount }
@@ -38,19 +53,28 @@ struct DashboardView: View {
                 // Accesos Directos
                 HStack(spacing: 20) {
                     DashboardButton(iconName: "arrow.up.circle", title: "Pagar") {
-                        showPaymentView = true
+//                        showPaymentView = true
+                        if users.isEmpty {
+                            activeSheet = .profile
+                        } else {
+                            activeSheet = .payment
+                        }
                     }
                     DashboardButton(iconName: "list.bullet", title: "Historial") {
-                        showTransactionsView = true
+//                        showTransactionsView = true
+                        activeSheet = .transactions
                     }
                     DashboardButton(iconName: "gift.circle", title: "Canjear") {
-                        showRedeemView = true
+                        activeSheet = .redeem
+//                        showRedeemView = true
                     }
                 }
 
                 // Botón de Referidos
                 Button(action: {
-                    showInviteView = true
+                    activeSheet = .invite
+
+//                    showInviteView = true
                 }) {
                     HStack {
                         Image(systemName: "qrcode")
@@ -79,23 +103,47 @@ struct DashboardView: View {
             .padding()
             .navigationTitle("Fium")
             // Navegación a otras vistas
-            .sheet(isPresented: $showPaymentView) {
-                if let user = users.first {
-                    let manager = MultipeerManager(user: user)
-                    PaymentView(multipeerManager: manager)
-                } else {
-                    Text("No se encontró el usuario.")
+            .sheet(item: $activeSheet) { item in
+                switch item {
+                case .payment:
+                    if let user = users.first {
+                        let manager = MultipeerManager(user: user)
+                        PaymentView(multipeerManager: manager)
+                    } else {
+                        // Redirigir al perfil si no hay usuario
+                        ProfileView()
+                    }
+                case .profile:
+                    ProfileView()
+                case .transactions:
+                    TransactionsView()
+                case .redeem:
+                    RedeemView()
+                case .invite:
+                    InviteView()
                 }
-            }
-            .sheet(isPresented: $showTransactionsView) {
-                TransactionsView()
-            }
-            .sheet(isPresented: $showRedeemView) {
-                RedeemView()
-            }
-            .sheet(isPresented: $showInviteView) {
-                InviteView()
-            }
+            }.onAppear {
+                if users.isEmpty {
+                    activeSheet = .profile
+                }
+            }.disabled(users.isEmpty)
+//            .sheet(isPresented: $showPaymentView) {
+//                if let user = users.first {
+//                    let manager = MultipeerManager(user: user)
+//                    PaymentView(multipeerManager: manager)
+//                } else {
+//                    Text("No se encontró el usuario.")
+//                }
+//            }
+//            .sheet(isPresented: $showTransactionsView) {
+//                TransactionsView()
+//            }
+//            .sheet(isPresented: $showRedeemView) {
+//                RedeemView()
+//            }
+//            .sheet(isPresented: $showInviteView) {
+//                InviteView()
+//            }
         }
     }
 }
