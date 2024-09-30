@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct DeviceConnectionView: View {
-    @ObservedObject var multipeerManager: MultipeerManager
+    @EnvironmentObject var multipeerManager: MultipeerManager
     var onClose: () -> Void  // Acción para cerrar la modal cuando se completa la conexión
 
     var body: some View {

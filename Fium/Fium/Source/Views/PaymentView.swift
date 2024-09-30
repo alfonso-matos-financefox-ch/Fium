@@ -17,7 +17,7 @@ struct PaymentView: View {
     @Environment(\.presentationMode) var presentationMode
     @State var amount = ""
     @State var concept = ""
-    @ObservedObject var multipeerManager: MultipeerManager
+    @EnvironmentObject var multipeerManager: MultipeerManager
     @State var showConfirmation = false
     @State var showReceivedRequest = false
     @State var isSendingPayment = false
@@ -36,11 +36,12 @@ struct PaymentView: View {
     var body: some View {
         VStack(spacing: 20) {
             // Encabezado con el ícono del otro usuario
-            PeerHeaderView(multipeerManager: multipeerManager, showDeviceConnection: $showDeviceConnection)
+            PeerHeaderView(showDeviceConnection: $showDeviceConnection).environmentObject(multipeerManager)
             
             if !showDeviceConnection {
                 // Selección de rol
-                RolePickerView(selectedRole: $selectedRole, multipeerManager: multipeerManager)
+                RolePickerView(selectedRole: $selectedRole, onRoleChange: resetForm)
+                    .environmentObject(multipeerManager)
                 
                 // Mostrar contenido basado en el rol
                 if selectedRole == "sender" {
@@ -49,13 +50,12 @@ struct PaymentView: View {
                         amount: $amount,
                         concept: $concept,
                         isSendingPayment: $isSendingPayment,
-                        multipeerManager: multipeerManager,
                         authenticateAction: authenticateUser,
                         sendPaymentAction: sendPayment
-                    )
+                    ).environmentObject(multipeerManager)
                 } else if selectedRole == "receiver" {
                     // Mostrar mensaje para el receptor
-                    ReceiverMessageView(multipeerManager: multipeerManager)
+                    ReceiverMessageView().environmentObject(multipeerManager)
                 } else {
                     // Cuando no se ha seleccionado ningún rol
                     Text("Por favor, selecciona tu rol para continuar.")
@@ -66,11 +66,10 @@ struct PaymentView: View {
                 Spacer()
                 
                 PaymentProgressView(
-                    multipeerManager: multipeerManager,
                     isSendingPayment: isSendingPayment,
                     isReceivingPayment: isReceivingPayment,
                     showPaymentSuccess: showPaymentSuccess
-                )
+                ).environmentObject(multipeerManager)
                 
                 Spacer()
                 
@@ -105,7 +104,7 @@ struct PaymentView: View {
                                     multipeerManager.sendAcceptanceToSender()
                                     processReceivedPayment()
                                     showReceivedRequest = false
-                                    print("Pago aceptado por el receptor")
+                                    print("Pago aceptado por el receptor - paymentView")
                                 } else {
                                     // Manejar autenticación fallida
                                     alertMessage = "Autenticación fallida."
@@ -138,22 +137,24 @@ struct PaymentView: View {
                         // Acción al cerrar la modal
                         showRejectionAlert = false
                         resetForm()
+                        print("show rejection alert")
                         multipeerManager.updateSenderState(.idle)
                     }
                     // Configurar la altura de la modal para que ocupe el 33% de la pantalla
-                    .presentationDetents([.fraction(0.33)])
+                    .presentationDetents([.fraction(0.50)])
                     .presentationDragIndicator(.visible)
                 }.sheet(isPresented: $showDeviceConnection, onDismiss: {
                     // Acciones al cerrar la modal, si es necesario
                 }) {
                     
-                    DeviceConnectionView(multipeerManager: multipeerManager) {
+                    DeviceConnectionView() {
                         // Acción al cerrar la modal desde DeviceConnectionView
                         showDeviceConnection = false
                     }
                     // Opcional: Configurar la altura de la modal si lo deseas
-                    .presentationDetents([.fraction(0.5)])
+                    .presentationDetents([.fraction(0.6)])
                     .presentationDragIndicator(.visible)
+                    .environmentObject(multipeerManager)
                 }
             .onChange(of: isSendingPayment) {  oldValue, newValue in
                 if !newValue && paymentSent {
@@ -161,11 +162,13 @@ struct PaymentView: View {
                     resetForm()
                 }
             }.onChange(of: multipeerManager.receiverState) { oldValue, newValue in
+                print("Entra en receiverState")
                 if multipeerManager.isReceiver && newValue == .paymentCompleted {
                     // Aquí puedes llamar a un método específico para el receptor si es necesario
                     // Por ahora, ya estamos manejando el éxito en `processReceivedPayment()`
                 }
             }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
+                print("Entra en senderState, oldValue: \(oldValue), newValue: \(newValue)")
                 if !multipeerManager.isReceiver && newValue == .paymentCompleted  {
                     processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
                     print("Procesando pago completado para el emisor")
@@ -173,7 +176,7 @@ struct PaymentView: View {
                 }
                 if !multipeerManager.isReceiver && newValue == .paymentAccepted {
                     // Manejar el estado .paymentAccepted si es necesario
-                    print("Pago aceptado por el receptor")
+                    print("Pago aceptado por el receptor - PaymentAccepted")
                     // Podrías decidir si quieres mostrar la pantalla de éxito aquí también
                 }
                 if !multipeerManager.isReceiver && newValue == .paymentRejected {

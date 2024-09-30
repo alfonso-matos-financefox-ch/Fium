@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct PeerHeaderView: View {
-    @ObservedObject var multipeerManager: MultipeerManager
+    @EnvironmentObject var multipeerManager: MultipeerManager
     @Binding var showDeviceConnection: Bool
 
     var body: some View {

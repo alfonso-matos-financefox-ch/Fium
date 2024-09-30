@@ -33,7 +33,7 @@ enum ActiveSheet: Identifiable {
 
 struct DashboardView: View {
     @Query private var users: [User]
-    
+    @StateObject private var multipeerManager = MultipeerManager()
     @ObservedObject var transactionManager = TransactionManager.shared
     @State private var showPaymentView = false
     @State private var showTransactionsView = false
@@ -47,6 +47,8 @@ struct DashboardView: View {
         transactionManager.transactions.reduce(100) { $0 + $1.amount }
     }
 
+    
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -107,6 +109,12 @@ struct DashboardView: View {
                 }
                 .sheet(isPresented: $showProfileView) {
                     ProfileView()
+                        .onDisappear {
+                            if let user = users.first {
+                                multipeerManager.setUser(user)
+                            }
+                        }
+                        .environmentObject(multipeerManager) // Pasar environmentObject
                 }
             }
             .padding()
@@ -116,25 +124,38 @@ struct DashboardView: View {
                 switch item {
                 case .payment:
                     if let user = users.first {
-                        let manager = MultipeerManager(user: user)
-                        PaymentView(multipeerManager: manager)
+                        PaymentView()
                             .presentationDetents(item.detents)
+                            .environmentObject(multipeerManager) // Pasar environmentObject
                     } else {
                         // Redirigir al perfil si no hay usuario
                         ProfileView()
+                            .onDisappear {
+                                if let user = users.first {
+                                    multipeerManager.setUser(user)
+                                }
+                            }
+                            .environmentObject(multipeerManager) // Pasar environmentObject
                     }
                 case .profile:
                     ProfileView()
+                        .onDisappear {
+                        if let user = users.first {
+                            multipeerManager.setUser(user)
+                        }
+                    }.environmentObject(multipeerManager) // Pasar environmentObject
                 case .transactions:
-                    TransactionsView()
+                    TransactionsView().environmentObject(multipeerManager) // Pasar environmentObject
                 case .redeem:
-                    RedeemView()
+                    RedeemView().environmentObject(multipeerManager) // Pasar environmentObject
                 case .invite:
-                    InviteView()
+                    InviteView().environmentObject(multipeerManager) // Pasar environmentObject
                 }
             }.onAppear {
                 if users.isEmpty {
                     activeSheet = .profile
+                } else {
+                    multipeerManager.setUser(users.first!)
                 }
             }
 //            .disabled(users.isEmpty)

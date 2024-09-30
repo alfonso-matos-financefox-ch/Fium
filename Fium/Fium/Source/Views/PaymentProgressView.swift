@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PaymentProgressView: View {
-    @ObservedObject var multipeerManager: MultipeerManager
+    @EnvironmentObject var multipeerManager: MultipeerManager
     var isSendingPayment: Bool
     var isReceivingPayment: Bool
     var showPaymentSuccess: Bool

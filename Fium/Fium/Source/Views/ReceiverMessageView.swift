@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ReceiverMessageView: View {
-    @ObservedObject var multipeerManager: MultipeerManager
+    @EnvironmentObject var multipeerManager: MultipeerManager
 
     var body: some View {
         VStack(spacing: 10) {

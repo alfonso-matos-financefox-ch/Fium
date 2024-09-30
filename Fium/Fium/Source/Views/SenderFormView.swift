@@ -11,7 +11,7 @@ struct SenderFormView: View {
     @Binding var amount: String
     @Binding var concept: String
     @Binding var isSendingPayment: Bool
-    @ObservedObject var multipeerManager: MultipeerManager
+    @EnvironmentObject var multipeerManager: MultipeerManager
     var authenticateAction: (@escaping (Bool) -> Void) -> Void
     var sendPaymentAction: () -> Void
 

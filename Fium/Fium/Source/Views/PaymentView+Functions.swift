@@ -12,20 +12,48 @@ extension PaymentView {
     
     // Función para enviar el pago
     func sendPayment() {
-        if let amountValue = Double(amount) {
-            let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: multipeerManager.myPeerID.displayName)
-            
-            // Enviar tanto el rol como la solicitud de pago
-            multipeerManager.sendPaymentRequest(paymentRequest)
-            isSendingPayment = true
-
-            // Actualizar los tokens de ambos usuarios (puedes definir la lógica para sumar tokens aquí)
-            updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
-
-            sendTransactionNotification(amount: amountValue, recipient: multipeerManager.discoveredPeer?.displayName ?? "Desconocido")
-            multipeerManager.updateSenderState(.paymentSent)  // Actualizamos el estado del emisor después de enviar el pago
-            print("Pago enviado: \(amountValue)€ para \(concept)")
+        guard let amountValue = Double(amount),
+              let myPeerID = multipeerManager.myPeerID else {
+            alertMessage = "Error: ID de Peer no disponible o cantidad inválida."
+            showAlert = true
+            return
         }
+        
+        let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: myPeerID.displayName)
+            
+        // Enviar tanto el rol como la solicitud de pago
+        
+        isSendingPayment = true
+        paymentSent = false
+        
+        multipeerManager.sendPaymentRequest(paymentRequest){ success in
+            DispatchQueue.main.async {
+                self.isSendingPayment = false
+                if success {
+                    self.paymentSent = true
+                } else {
+                    self.alertMessage = "Error al enviar la solicitud de pago."
+                    self.showAlert = true
+                    // Opcional: Resetear campos para permitir reintentos
+                    self.resetForm()
+                }
+            }
+        }
+    
+        
+        // Actualizar los tokens de ambos usuarios (puedes definir la lógica para sumar tokens aquí)
+        updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
+
+        sendTransactionNotification(amount: amountValue, recipient: multipeerManager.discoveredPeer?.displayName ?? "Desconocido")
+        multipeerManager.updateSenderState(.paymentSent)  // Actualizamos el estado del emisor después de enviar el pago
+        print("Pago enviado: \(amountValue)€ para \(concept)")
+        
+    }
+
+    func resetForm() {
+        amount = ""
+        concept = ""
+        paymentSent = false
     }
     
     // Función para procesar la finalización del pago para el emisor
@@ -44,10 +72,10 @@ extension PaymentView {
         }
 
         // Cerrar la pantalla automáticamente después de 3 segundos
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-//            // Cerrar la modal
-//            presentationMode.wrappedValue.dismiss()
-//        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            // Cerrar la modal
+            presentationMode.wrappedValue.dismiss()
+        }
     }
     
     // Función para procesar el pago recibido
@@ -107,12 +135,6 @@ extension PaymentView {
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
         
         UNUserNotificationCenter.current().add(request)
-    }
-    
-    func resetForm() {
-        amount = ""
-        concept = ""
-        paymentSent = false
     }
     
     func authenticateUser(completion: @escaping (Bool) -> Void) {

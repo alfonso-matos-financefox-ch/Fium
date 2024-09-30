@@ -8,8 +8,11 @@ import SwiftUI
 
 struct RolePickerView: View {
     @Binding var selectedRole: String
-    @ObservedObject var multipeerManager: MultipeerManager
+    @EnvironmentObject var multipeerManager: MultipeerManager
 
+    // Añadir una propiedad para el closure de reinicio
+    var onRoleChange: () -> Void
+    
     var body: some View {
         Picker("Selecciona tu rol", selection: $selectedRole) {
             Text("Selecciona un rol").tag("none")
@@ -26,8 +29,11 @@ struct RolePickerView: View {
                     multipeerManager.isReceiver = true
                     multipeerManager.updateReceiverState(.roleSelectedReceiver)
                 } else if newValue == "sender" {
+                    onRoleChange() // Llamar al closure para resetear el formulario
                     multipeerManager.isReceiver = false
                     multipeerManager.updateSenderState(.roleSelectedSender)
+                    // Notificar a PaymentView para resetear el formulario
+                                        // Esto se hará mediante el binding en PaymentView
                 }
             }
         }

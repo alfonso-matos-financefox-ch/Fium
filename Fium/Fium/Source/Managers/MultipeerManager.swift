@@ -14,10 +14,10 @@ import SwiftData
 class MultipeerManager: NSObject, ObservableObject {
     static let serviceType = "fium-pay"
 //    let myPeerID = MCPeerID(displayName: MultipeerManager.getDeviceModelIdentifier())
-    let myPeerID: MCPeerID
-    let session: MCSession
-    let advertiser: MCNearbyServiceAdvertiser
-    let browser: MCNearbyServiceBrowser
+    var myPeerID: MCPeerID?
+    var session: MCSession?
+    var advertiser: MCNearbyServiceAdvertiser?
+    var browser: MCNearbyServiceBrowser?
 
     @Published var discoveredPeer: MCPeerID?
     @Published var receivedPaymentRequest: PaymentRequest?
@@ -35,8 +35,8 @@ class MultipeerManager: NSObject, ObservableObject {
     @Published var isInPaymentView: Bool = false
     
     // Datos del usuario
-    @Published var localPeerName: String
-    @Published var localPeerIcon: String
+    @Published var localPeerName: String = ""
+    @Published var localPeerIcon: String = ""
     @Published var localPeerImage: UIImage?
     
     // Datos del peer conectado
@@ -47,29 +47,62 @@ class MultipeerManager: NSObject, ObservableObject {
     var audioPlayer: AVAudioPlayer?
 //    var deviceIdentifier: String
     
-    init(user: User) {
-        // Usar variables temporales para evitar usar 'self' antes de super.init()
-        let name = user.name
-        let icon = "person.circle.fill" // Puedes personalizar esto si tienes un icono diferente
-        let image: UIImage? = user.profileImageData != nil ? UIImage(data: user.profileImageData!) : nil
+    override init() {
+            super.init()
+        }
 
-        // Asignar a las propiedades de 'self'
-        self.localPeerName = name
-        self.localPeerIcon = icon
-        self.localPeerImage = image
+    
+//    func setUser(_ user: User) {
+//        print("Entrando en init de multipeer manager")
+//        // Usar variables temporales para evitar usar 'self' antes de super.init()
+//        let name = user.name
+//        let icon = "person.circle.fill" // Puedes personalizar esto si tienes un icono diferente
+//        let image: UIImage? = user.profileImageData != nil ? UIImage(data: user.profileImageData!) : nil
+//
+//        // Asignar a las propiedades de 'self'
+//        self.localPeerName = name
+//        self.localPeerIcon = icon
+//        self.localPeerImage = image
+//
+//        // Inicializar myPeerID y otros componentes de MultipeerConnectivity
+//        self.myPeerID = MCPeerID(displayName: name)
+//        let discoveryInfo = ["name": name]
+//
+//        self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
+//        self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: discoveryInfo, serviceType: MultipeerManager.serviceType)
+//        self.browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: MultipeerManager.serviceType)
+//        super.init()
+//        
+//        session.delegate = self
+//        advertiser.delegate = self
+//        browser.delegate = self
+//    }
+    
+    func setUser(_ user: User) {
+        // Configurar propiedades del usuario
+        self.localPeerName = user.name
+        self.localPeerIcon = "person.circle.fill" // Personaliza si tienes diferentes íconos
+        self.localPeerImage = user.profileImageData != nil ? UIImage(data: user.profileImageData!) : nil
 
-        // Inicializar myPeerID y otros componentes de MultipeerConnectivity
-        self.myPeerID = MCPeerID(displayName: name)
-        let discoveryInfo = ["name": name]
-
+        // Inicializar componentes de MultipeerConnectivity
+        self.myPeerID = MCPeerID(displayName: user.name)
+        guard let myPeerID = self.myPeerID else {
+                print("Error al crear myPeerID")
+                return
+            }
         self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
+        self.session?.delegate = self
+
+        let discoveryInfo = ["name": user.name, "icon": self.localPeerIcon]
+
         self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: discoveryInfo, serviceType: MultipeerManager.serviceType)
+        self.advertiser?.delegate = self
+        self.advertiser?.startAdvertisingPeer()
+
         self.browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: MultipeerManager.serviceType)
-        super.init()
-        
-        session.delegate = self
-        advertiser.delegate = self
-        browser.delegate = self
+        self.browser?.delegate = self
+        self.browser?.startBrowsingForPeers()
+        print("MultipeerManager inicializado con el usuario: \(user.name)")
     }
 
     func updateSenderState(_ newState: SenderState) {
@@ -99,24 +132,32 @@ class MultipeerManager: NSObject, ObservableObject {
     
     func start() {
         print("Iniciando publicidad y búsqueda de peers")
-        advertiser.startAdvertisingPeer()
+        advertiser?.startAdvertisingPeer()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.browser.startBrowsingForPeers()
+            self.browser?.startBrowsingForPeers()
         }
         updateSenderState(.idle)
         updateReceiverState(.idle)
-        print("Publicidad iniciada: \(self.advertiser)")
-        print("Búsqueda iniciada: \(self.browser)")
+        print("Publicidad iniciada: \(String(describing: self.advertiser))")
+        print("Búsqueda iniciada: \(String(describing: self.browser))")
     }
 
     func stop() {
-        advertiser.stopAdvertisingPeer()
-        browser.stopBrowsingForPeers()
-        session.disconnect()
+        advertiser?.stopAdvertisingPeer()
+        browser?.stopBrowsingForPeers()
+        session?.disconnect()
         print("stop session")
     }
 
-    func sendPaymentRequest(_ paymentRequest: PaymentRequest) {
+    func sendPaymentRequest(_ paymentRequest: PaymentRequest, completion: @escaping (Bool) -> Void) {
+        
+        guard let session = self.session else {
+            print("No hay sesión activa")
+            self.statusMessage = "No hay sesión activa"
+            updateSenderState(.idle)
+            completion(false)
+            return
+        }
         if !session.connectedPeers.isEmpty {
             do {
                 let data = try JSONEncoder().encode(paymentRequest)
@@ -125,18 +166,28 @@ class MultipeerManager: NSObject, ObservableObject {
                 try session.send(jsonData, toPeers: session.connectedPeers, with: .reliable)
                 self.statusMessage = "Solicitud de pago enviada"
                 updateSenderState(.paymentSent)
+                completion(true)
             } catch let error {
                 print("Error sending payment request: \(error.localizedDescription)")
-                
+                self.statusMessage = "Error al enviar solicitud de pago: \(error.localizedDescription)"
+                updateSenderState(.idle) // Resetear estado para permitir reintentos
+                completion(false)
             }
         } else {
             print("No hay peers conectados")
             self.statusMessage = "No hay peers conectados"
+            updateSenderState(.idle)
+            completion(false)
         }
     }
     
     func sendRole(_ role: String) {
         let roleData = ["role": role]  // role puede ser "sender" o "receiver"
+        guard let session = self.session else {
+            print("No hay sesión activa para enviar el rol")
+            self.statusMessage = "No hay sesión activa para enviar el rol"
+            return
+        }
         do {
             let data = try JSONSerialization.data(withJSONObject: roleData, options: .fragmentsAllowed)
             try session.send(data, toPeers: session.connectedPeers, with: .reliable)
@@ -148,6 +199,8 @@ class MultipeerManager: NSObject, ObservableObject {
             }
         } catch let error {
             print("Error al enviar el rol: \(error)")
+            self.statusMessage = "Error al enviar el rol: \(error.localizedDescription)"
+
         }
     }
 
@@ -173,8 +226,16 @@ class MultipeerManager: NSObject, ObservableObject {
             print("Emisor envía datos: \(message)")
             
             // Verificar si hay peers conectados
-            if self.session.connectedPeers.isEmpty {
+
+            guard let session = self.session else {
+                print("No hay sesión activa para enviar el rol y solicitud de pago")
+                self.isSendingPayment = false
+                self.statusMessage = "No hay sesión activa para enviar el rol y solicitud de pago"
+                return
+            }
+            if session.connectedPeers.isEmpty {
                 print("No hay peers conectados para enviar el pago.")
+                self.statusMessage = "No hay peers conectados para enviar el pago."
                 self.isSendingPayment = false  // No está enviando si no hay peers
                 return
             }
@@ -197,15 +258,20 @@ class MultipeerManager: NSObject, ObservableObject {
                     self.statusMessage = "Envío rol: \(paymentString)"
                 } catch {
                     print("Error al codificar la solicitud de pago: \(error)")
+                    self.statusMessage = "Error al codificar la solicitud de pago: \(error.localizedDescription)"
+
+
                 }
             }
             
             do {
                 let data = try JSONSerialization.data(withJSONObject: message, options: .fragmentsAllowed)
-                try self.session.send(data, toPeers: self.session.connectedPeers, with: .reliable)
+                try session.send(data, toPeers: session.connectedPeers, with: .reliable)
                 self.statusMessage = "sendRoleAndPaymentRequest"
             } catch {
                 print("Error al enviar datos: \(error)")
+                self.statusMessage = "Error al enviar datos: \(error.localizedDescription)"
+
             }
         }
     }
@@ -236,7 +302,11 @@ class MultipeerManager: NSObject, ObservableObject {
         let rejectionData: [String: Any] = [
             "status": "rejected"
         ]
-        
+        guard let session = self.session else {
+            print("No hay sesión activa para enviar la notificación de rechazo")
+            self.statusMessage = "No hay sesión activa para enviar la notificación de rechazo"
+            return
+        }
         do {
             let data = try JSONSerialization.data(withJSONObject: rejectionData, options: .fragmentsAllowed)
             try session.send(data, toPeers: session.connectedPeers, with: .reliable)
@@ -270,6 +340,7 @@ class MultipeerManager: NSObject, ObservableObject {
             self.statusMessage = "Conexión reiniciada"
             self.senderState = .idle
             self.receiverState = .idle
+            print("reset connection")
         }
         
         // Reiniciar los servicios
@@ -305,6 +376,11 @@ class MultipeerManager: NSObject, ObservableObject {
             "status": "accepted",
             "paymentRequest": paymentData  // Ahora seguro que es un String no opcional
         ]
+        guard let session = self.session else {
+            print("No hay sesión activa para enviar la aceptación")
+            self.statusMessage = "No hay sesión activa para enviar la aceptación"
+            return
+        }
         
         do {
             let data = try JSONSerialization.data(withJSONObject: acceptanceData, options: .fragmentsAllowed)
@@ -361,7 +437,7 @@ extension MultipeerManager: MCSessionDelegate {
                 } else if session.connectedPeers.isEmpty { // Asegúrate de no reconectar si has salido de la vista de Payment
                     if self.isInPaymentView {
                         print("Intentando reconectar al peer \(peerID.displayName)...")
-                        self.browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+                        self.browser?.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
                     } else {
                         print("No reconectar, estamos fuera de la vista de Payment.")
                         self.stop()
@@ -369,7 +445,7 @@ extension MultipeerManager: MCSessionDelegate {
                 } else {
                     // Intentar reconectar automáticamente al peer que se desconectó
                     print("Intentando reconectar al peer \(peerID.displayName)...")
-                    self.browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+                    self.browser?.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
                 }
                 
             @unknown default:
@@ -407,6 +483,10 @@ extension MultipeerManager: MCSessionDelegate {
     }
     
     func sendProfileInfo(to peerID: MCPeerID) {
+        guard !self.localPeerName.isEmpty else {
+            print("Nombre del usuario vacío, no se puede enviar la información del perfil")
+            return
+        }
         var profileInfo: [String: Any] = [
                 "type": "profileInfo",
                 "name": self.localPeerName,
@@ -421,7 +501,7 @@ extension MultipeerManager: MCSessionDelegate {
 
         do {
             let data = try JSONSerialization.data(withJSONObject: profileInfo, options: [])
-            try session.send(data, toPeers: [peerID], with: .reliable)
+            try session?.send(data, toPeers: [peerID], with: .reliable)
         } catch {
             print("Error al enviar la información del perfil: \(error)")
         }
@@ -523,7 +603,7 @@ extension MultipeerManager: MCSessionDelegate {
                     if !self.isReceiver, let status = receivedData["status"] as? String {
                         DispatchQueue.main.async {
                             if status == "accepted" {
-                                print("Pago aceptado por el receptor")
+                                print("Pago aceptado por el receptor- MultipeerManager")
                                 self.updateSenderState(.paymentAccepted)
                                 self.statusMessage = "Pago aceptado por el receptor"
                                 
@@ -602,14 +682,18 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
             }
 
             // Invitar al peer descubierto a la sesión
-            browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
-            
-//            DispatchQueue.main.async {
-//                self.discoveredPeer = peerID  // Solo establece este peer si no es tú mismo
-//            }
+            if let session = self.session {
+                do {
+                    browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
+                    print("Invitación enviada a \(peerID.displayName)")
+                }
+            } else {
+                print("No hay sesión activa para invitar al peer")
+            }
         } else {
             print("Evitar conexión con uno mismo")
         }
+            
     }
 
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
