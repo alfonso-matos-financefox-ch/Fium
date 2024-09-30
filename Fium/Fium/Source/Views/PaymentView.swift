@@ -105,6 +105,7 @@ struct PaymentView: View {
                                     multipeerManager.sendAcceptanceToSender()
                                     processReceivedPayment()
                                     showReceivedRequest = false
+                                    print("Pago aceptado por el receptor")
                                 } else {
                                     // Manejar autenticación fallida
                                     alertMessage = "Autenticación fallida."
@@ -117,6 +118,7 @@ struct PaymentView: View {
                             multipeerManager.receivedPaymentRequest = nil
                             multipeerManager.updateReceiverState(.idle)
                             showReceivedRequest = false
+                            print("Pago rechazado por el receptor")
                             
                         })
                     } else {
@@ -129,40 +131,8 @@ struct PaymentView: View {
                         // Acción para cerrar la hoja
                         showPaymentSuccess = false
                         presentationMode.wrappedValue.dismiss()
-                    }
+                    }.presentationDetents([.fraction(0.5)])
                 }
-            .onChange(of: isSendingPayment) {  oldValue, newValue in
-                if !newValue && paymentSent {
-                    showConfirmation = true
-                    resetForm()
-                }
-            }.onChange(of: multipeerManager.receiverState) { oldValue, newValue in
-                if multipeerManager.isReceiver && newValue == .paymentCompleted {
-                    // Aquí puedes llamar a un método específico para el receptor si es necesario
-                    // Por ahora, ya estamos manejando el éxito en `processReceivedPayment()`
-                }
-            }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
-                if !multipeerManager.isReceiver && newValue == .paymentCompleted  {
-                    processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
-
-                    // Cerrar la pantalla automáticamente después de 3 segundos
-                }
-                if !multipeerManager.isReceiver && newValue == .paymentRejected {
-
-                        showRejectionAlert = true
-                    isSendingPayment = false  // Restablecer el estado de envío
-                }
-            }
-            .alert(isPresented: $showConfirmation) {
-                Alert(
-                    title: Text("Pago Exitoso"),
-                    message: Text("La transacción se ha completado con éxito."),
-                    dismissButton: .default(Text("OK"))
-                )
-            }
-            .alert(isPresented: $showAlert) {
-                Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-            }
                 .sheet(isPresented: $showRejectionAlert) {
                     PaymentRejectedView {
                         // Acción al cerrar la modal
@@ -185,6 +155,44 @@ struct PaymentView: View {
                     .presentationDetents([.fraction(0.5)])
                     .presentationDragIndicator(.visible)
                 }
+            .onChange(of: isSendingPayment) {  oldValue, newValue in
+                if !newValue && paymentSent {
+                    showConfirmation = true
+                    resetForm()
+                }
+            }.onChange(of: multipeerManager.receiverState) { oldValue, newValue in
+                if multipeerManager.isReceiver && newValue == .paymentCompleted {
+                    // Aquí puedes llamar a un método específico para el receptor si es necesario
+                    // Por ahora, ya estamos manejando el éxito en `processReceivedPayment()`
+                }
+            }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
+                if !multipeerManager.isReceiver && newValue == .paymentCompleted  {
+                    processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
+                    print("Procesando pago completado para el emisor")
+                    // Cerrar la pantalla automáticamente después de 3 segundos
+                }
+                if !multipeerManager.isReceiver && newValue == .paymentAccepted {
+                    // Manejar el estado .paymentAccepted si es necesario
+                    print("Pago aceptado por el receptor")
+                    // Podrías decidir si quieres mostrar la pantalla de éxito aquí también
+                }
+                if !multipeerManager.isReceiver && newValue == .paymentRejected {
+
+                        showRejectionAlert = true
+                    isSendingPayment = false  // Restablecer el estado de envío
+                }
+            }
+            .alert(isPresented: $showConfirmation) {
+                Alert(
+                    title: Text("Pago Exitoso"),
+                    message: Text("La transacción se ha completado con éxito."),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            }
+                
         
     }
 

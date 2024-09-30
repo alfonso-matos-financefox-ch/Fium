@@ -20,6 +20,15 @@ enum ActiveSheet: Identifiable {
     var id: Int {
         hashValue
     }
+    
+    var detents: Set<PresentationDetent> {
+            switch self {
+            case .payment:
+                return [.fraction(0.5)]
+            default:
+                return [.large]
+            }
+        }
 }
 
 struct DashboardView: View {
@@ -109,6 +118,7 @@ struct DashboardView: View {
                     if let user = users.first {
                         let manager = MultipeerManager(user: user)
                         PaymentView(multipeerManager: manager)
+                            .presentationDetents(item.detents)
                     } else {
                         // Redirigir al perfil si no hay usuario
                         ProfileView()
@@ -126,7 +136,8 @@ struct DashboardView: View {
                 if users.isEmpty {
                     activeSheet = .profile
                 }
-            }.disabled(users.isEmpty)
+            }
+//            .disabled(users.isEmpty)
 //            .sheet(isPresented: $showPaymentView) {
 //                if let user = users.first {
 //                    let manager = MultipeerManager(user: user)

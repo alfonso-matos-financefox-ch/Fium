@@ -24,26 +24,30 @@ extension PaymentView {
 
             sendTransactionNotification(amount: amountValue, recipient: multipeerManager.discoveredPeer?.displayName ?? "Desconocido")
             multipeerManager.updateSenderState(.paymentSent)  // Actualizamos el estado del emisor después de enviar el pago
+            print("Pago enviado: \(amountValue)€ para \(concept)")
         }
     }
     
     // Función para procesar la finalización del pago para el emisor
     func processPaymentCompletionForSender() {
-        // Indicar que la transacción ha sido completada
-        multipeerManager.updateSenderState(.paymentCompleted)
-
-        // Calcular los tokens ganados
-        let tokens = calculateTokens(for: Double(amount) ?? 0)
-        tokensEarned = tokens  // Actualizar la variable de tokens en el emisor
-
-        // Mostrar el check de éxito y ocultar el ProgressView
-        showPaymentSuccess = true
+        print("processPaymentCompletionForSender() llamado")
+        DispatchQueue.main.async {
+            // Indicar que la transacción ha sido completada
+            multipeerManager.updateSenderState(.paymentCompleted)
+            // Calcular los tokens ganados
+            let tokens = calculateTokens(for: Double(amount) ?? 0)
+            tokensEarned = tokens  // Actualizar la variable de tokens en el emisor
+            
+            // Mostrar el check de éxito y ocultar el ProgressView
+            showPaymentSuccess = true
+            print("showPaymentSuccess establecido a true")
+        }
 
         // Cerrar la pantalla automáticamente después de 3 segundos
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            // Cerrar la modal
-            presentationMode.wrappedValue.dismiss()
-        }
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+//            // Cerrar la modal
+//            presentationMode.wrappedValue.dismiss()
+//        }
     }
     
     // Función para procesar el pago recibido
@@ -67,7 +71,7 @@ extension PaymentView {
 
             // Mostrar el check de éxito y ocultar el ProgressView
             showPaymentSuccess = true
-            
+            print("showPaymentSuccess establecido a true para receptor")
             // Cerrar la pantalla automáticamente después de 3 segundos
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 // Cerrar la modal
