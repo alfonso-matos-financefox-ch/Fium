@@ -34,15 +34,18 @@ struct DeviceConnectionView: View {
             Spacer()
 
             VStack {
-                if multipeerManager.discoveredPeer != nil {
-                    // Mostrar el icono y nombre del usuario conectado
-                    Image(systemName: multipeerManager.peerIcon)
+                if let image = multipeerManager.peerImage {
+                    
+                    Image(uiImage: image)
                         .resizable()
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(.green)
+                        .frame(width: 100, height:100)
+                        .clipShape(Circle())
                     Text(multipeerManager.peerName)
                         .font(.headline)
                         .padding(.top, 8)
+                        .foregroundColor(.gray)
+                        
+                    
                 } else {
                     // Mostrar el icono por defecto y el texto "Buscando usuario..."
                     Image(systemName: "person.circle.fill")
