@@ -119,7 +119,7 @@ struct PaymentView: View {
                             showReceivedRequest = false
                             print("Pago rechazado por el receptor")
                             
-                        })
+                        }) .presentationDetents([.fraction(0.5)])
                     } else {
                         
                         EmptyView()
