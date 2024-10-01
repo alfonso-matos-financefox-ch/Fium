@@ -8,8 +8,11 @@
 import SwiftUI
 import LocalAuthentication
 import FirebaseAuth
+import SwiftData
 
 struct LoginView: View {
+    @Environment(\.modelContext) private var context
+    @EnvironmentObject var multipeerManager: MultipeerManager
     @State private var email = ""
     @State private var password = ""
     @State private var isBiometricAvailable = false
@@ -31,9 +34,11 @@ struct LoginView: View {
                 TextField("Correo Electrónico", text: $email)
                     .keyboardType(.emailAddress)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(.horizontal)
 
                 SecureField("Contraseña", text: $password)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(.horizontal)
 
                 // Botón de inicio de sesión
                 Button(action: {
@@ -45,6 +50,7 @@ struct LoginView: View {
                         .frame(maxWidth: .infinity)
                         .background(Color.blue)
                         .cornerRadius(10)
+                        .padding(.horizontal)
                 }
 
                 // Botones de inicio de sesión con terceros
@@ -59,12 +65,14 @@ struct LoginView: View {
                         loginWithPayPalMock()
                     }
                 }
+                .padding(.horizontal)
 
                 // Botón de registro
                 NavigationLink(destination: RegisterView()) {
                     Text("¿No tienes una cuenta? Regístrate")
                         .foregroundColor(.gray)
                 }
+                .padding(.horizontal)
 
                 // Opción de autenticación biométrica
                 if showBiometricOption {
@@ -75,6 +83,10 @@ struct LoginView: View {
                             Image(systemName: "faceid")
                             Text("Iniciar sesión con Face ID")
                         }
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(10)
+                        .padding(.horizontal)
                     }
                 }
 
@@ -90,6 +102,7 @@ struct LoginView: View {
             }
             .fullScreenCover(isPresented: $isLoggedIn) {
                 DashboardView()
+                    .environmentObject(multipeerManager)
             }
         }
     }
@@ -101,14 +114,34 @@ struct LoginView: View {
             showAlert = true
         } else {
             // Simulación de inicio de sesión exitoso
-            isLoggedIn = true
-            showBiometricOption = true
+            // Crear un nuevo usuario y guardarlo en SwiftData
+            let newUser = User(email: email, name: "Nombre de Usuario", phoneNumber: "1234567890")
+            do {
+                try context.insert(newUser)
+                try context.save()
+                multipeerManager.setUser(newUser)
+                isLoggedIn = true
+                showBiometricOption = true
+            } catch {
+                alertMessage = "Error al crear el usuario: \(error.localizedDescription)"
+                showAlert = true
+            }
         }
     }
 
     func loginWithPayPalMock() {
         // Simulación de inicio de sesión con PayPal
-        isLoggedIn = true
+        // Crear un usuario de ejemplo
+        let paypalUser = User(email: "paypal@example.com", name: "PayPal User", phoneNumber: "0987654321")
+        do {
+            try context.insert(paypalUser)
+            try context.save()
+            multipeerManager.setUser(paypalUser)
+            isLoggedIn = true
+        } catch {
+            alertMessage = "Error al iniciar sesión con PayPal: \(error.localizedDescription)"
+            showAlert = true
+        }
     }
 
     func authenticateWithBiometrics() {

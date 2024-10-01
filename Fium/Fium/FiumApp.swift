@@ -8,12 +8,14 @@
 import SwiftUI
 import Firebase
 import UserNotifications
+import SwiftData
 
 @main
 struct FiumApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 //    var bonjourService: BonjourService?
     @StateObject private var bluetoothManager = BluetoothManager() // Instancia de BluetoothManager
+    @StateObject private var multipeerManager = MultipeerManager() // Nueva instancia de MultipeerManager
     
     init() {
         // Configura Firebase
@@ -27,9 +29,10 @@ struct FiumApp: App {
 
     var body: some Scene {
         WindowGroup {
-            LoginView()
-            .environmentObject(bluetoothManager)
-            .modelContainer(for: User.self)
+            SplashScreen()
+                .environmentObject(bluetoothManager)
+                .environmentObject(multipeerManager) // Proporciona MultipeerManager a todas las vistas
+                .modelContainer(for: [User.self, Transaction.self])
         }
     }
 

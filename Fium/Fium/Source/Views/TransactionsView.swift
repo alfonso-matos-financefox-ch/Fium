@@ -6,53 +6,61 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct TransactionsView: View {
-    @ObservedObject var transactionManager = TransactionManager.shared
-    @State private var selectedFilter: TransactionType = .all
+    @EnvironmentObject var multipeerManager: MultipeerManager
+    @Query(sort: \Transaction.date, order: .reverse) var transactions: [Transaction]
+    @State private var selectedFilter: TransactionFilter = .all
 
     var body: some View {
         NavigationView {
             VStack {
                 // Filtros
                 Picker("Filtro", selection: $selectedFilter) {
-                    Text("Todos").tag(TransactionType.all)
-                    Text("Pagos").tag(TransactionType.payment)
-                    Text("Canjes").tag(TransactionType.redeem)
+                    Text("Todos").tag(TransactionFilter.all)
+                    Text("Pagos").tag(TransactionFilter.payment)
+                    Text("Canjes").tag(TransactionFilter.redeem)
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding()
 
                 // Lista de Transacciones
                 List(filteredTransactions) { transaction in
-                    HStack {
-                        Image(systemName: transaction.iconName)
-                            .foregroundColor(transaction.amount < 0 ? .red : .green)
-                        VStack(alignment: .leading) {
-                            Text(transaction.name)
-                                .font(.headline)
-                            Text(transaction.concept)
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                        Spacer()
-                        Text("\(transaction.amount, specifier: "%.2f")€")
-                            .foregroundColor(transaction.amount < 0 ? .red : .green)
-                    }
+                    TransactionRowView(transaction: transaction, currentUserEmail: multipeerManager.currentUser?.email ?? "")
                 }
             }
             .navigationTitle("Transacciones")
+            .onAppear {
+                print("Transacciones cargadas: \(transactions)") // Verifica si las transacciones se están cargando
+            }
         }
     }
 
     var filteredTransactions: [Transaction] {
         switch selectedFilter {
         case .all:
-            return transactionManager.transactions
+            return transactions
         case .payment:
-            return transactionManager.transactions.filter { $0.type == .payment }
+            return transactions.filter { $0.type == .payment }
         case .redeem:
-            return transactionManager.transactions.filter { $0.type == .redeem }
+            return transactions.filter { $0.type == .redeem }
+        }
+    }
+
+    // Función para determinar el icono basado en la dirección de la transacción
+    func iconName(for transaction: Transaction) -> String {
+        // Suponiendo que tienes acceso al correo del usuario actual
+        guard let currentUserEmail = multipeerManager.currentUser?.email else {
+            return "circle"
+        }
+
+        if transaction.emitter == currentUserEmail {
+            return "arrow.up.circle"
+        } else if transaction.receiver == currentUserEmail {
+            return "arrow.down.circle"
+        } else {
+            return "circle"
         }
     }
 }

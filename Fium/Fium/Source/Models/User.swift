@@ -8,7 +8,7 @@ import Foundation
 import SwiftData
 
 @Model
-class User {
+class User: Identifiable {
     @Attribute(.unique) var email: String
     var name: String
     var phoneNumber: String
@@ -21,4 +21,6 @@ class User {
         self.profileImageData = profileImageData
     }
 }
+
+
 

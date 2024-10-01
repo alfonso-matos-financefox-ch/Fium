@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct RedeemView: View {
     @State private var offers: [Offer] = [
@@ -13,7 +14,8 @@ struct RedeemView: View {
         Offer(id: 2, storeName: "Librería Mundo", product: "10% Descuento", tokensRequired: 20)
     ]
     @State private var selectedOffer: Offer?
-
+    
+    
     var body: some View {
         NavigationView {
             List(offers) { offer in
@@ -41,7 +43,8 @@ struct RedeemView: View {
 struct RedeemDetailView: View {
     let offer: Offer
     @State private var showQRCode = false
-
+    @Environment(\.modelContext) private var context // Obtener el contexto del modelo
+    
     var body: some View {
         VStack(spacing: 20) {
             Text(offer.storeName)
@@ -57,8 +60,9 @@ struct RedeemDetailView: View {
                 showQRCode = true
 
                 // Registrar la transacción
-                let transaction = Transaction(id: UUID(), name: offer.storeName, amount: -Double(offer.tokensRequired), concept: offer.product, date: Date(), type: .redeem)
-                TransactionManager.shared.addTransaction(transaction)
+                let transaction = Transaction(id: UUID(), emitter: offer.storeName, receiver: "user@example.com", amount: -Double(offer.tokensRequired), concept: "Canje de \(offer.product)", date: Date(), type: .redeem, name: offer.storeName)
+
+                TransactionManager.shared.addTransaction(transaction, context: context)
             }) {
                 Text("Canjear")
                     .foregroundColor(.white)

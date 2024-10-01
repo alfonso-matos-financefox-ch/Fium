@@ -13,6 +13,8 @@ import SwiftData
 
 class MultipeerManager: NSObject, ObservableObject {
     static let serviceType = "fium-pay"
+    // Propiedad para almacenar el ModelContext
+    var modelContext: ModelContext?
 //    let myPeerID = MCPeerID(displayName: MultipeerManager.getDeviceModelIdentifier())
     var myPeerID: MCPeerID?
     var session: MCSession?
@@ -43,7 +45,7 @@ class MultipeerManager: NSObject, ObservableObject {
     @Published var peerName: String = ""
     @Published var peerIcon: String = "person.circle.fill"
     @Published var peerImage: UIImage?
-    
+    @Published var currentUser: User?
     var audioPlayer: AVAudioPlayer?
 //    var deviceIdentifier: String
     
@@ -80,6 +82,7 @@ class MultipeerManager: NSObject, ObservableObject {
     
     func setUser(_ user: User) {
         // Configurar propiedades del usuario
+        self.currentUser = user
         self.localPeerName = user.name
         self.localPeerIcon = "person.circle.fill" // Personaliza si tienes diferentes íconos
         self.localPeerImage = user.profileImageData != nil ? UIImage(data: user.profileImageData!) : nil
@@ -103,6 +106,11 @@ class MultipeerManager: NSObject, ObservableObject {
         self.browser?.delegate = self
         self.browser?.startBrowsingForPeers()
         print("MultipeerManager inicializado con el usuario: \(user.name)")
+    }
+    
+    // Método para asignar el contexto desde las vistas
+    func setModelContext(_ context: ModelContext) {
+        self.modelContext = context
     }
 
     func updateSenderState(_ newState: SenderState) {
@@ -279,11 +287,24 @@ class MultipeerManager: NSObject, ObservableObject {
 
     // Método que se ejecuta cuando el receptor acepta la solicitud de pago
     func completePayment(amount: Double, concept: String, recipientName: String) {
+        guard let context = modelContext else {
+            print("No se ha establecido el ModelContext.")
+            return
+        }
         // Realiza la transacción
         DispatchQueue.main.async {
             self.statusMessage = "Antes de realizar la transacción en completePayment"
-            let transaction = Transaction(id: UUID(), name: recipientName, amount: amount, concept: concept, date: Date(), type: .payment)
-            TransactionManager.shared.addTransaction(transaction)
+            let transaction = Transaction(
+                        id: UUID(),
+                        emitter: "id1", // Asume que tienes el email del usuario actual
+                        receiver: "id2", // El correo o identificador del receptor
+                        amount: amount,
+                        concept: concept,
+                        date: Date(),
+                        type: .payment,
+                        name: recipientName // Pasamos el nombre del receptor aquí
+                    )
+            TransactionManager.shared.addTransaction(transaction, context: context)
             
             print("Transacción completa: \(amount)€ para \(recipientName)")
             self.statusMessage = "Transacción completa: \(amount)€ para \(recipientName)"

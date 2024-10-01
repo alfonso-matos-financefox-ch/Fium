@@ -32,8 +32,8 @@ enum ActiveSheet: Identifiable {
 }
 
 struct DashboardView: View {
-    @Query private var users: [User]
-    @StateObject private var multipeerManager = MultipeerManager()
+    @Query(sort: \User.name, order: .forward) var users: [User]
+    @EnvironmentObject var multipeerManager: MultipeerManager
     @ObservedObject var transactionManager = TransactionManager.shared
     @State private var showPaymentView = false
     @State private var showTransactionsView = false
@@ -152,6 +152,8 @@ struct DashboardView: View {
                     InviteView().environmentObject(multipeerManager) // Pasar environmentObject
                 }
             }.onAppear {
+                // Establecer el contexto en el multipeerManager
+                multipeerManager.setModelContext(context)
                 if users.isEmpty {
                     activeSheet = .profile
                 } else {

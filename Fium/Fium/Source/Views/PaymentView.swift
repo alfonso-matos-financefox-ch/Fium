@@ -11,7 +11,7 @@ import SwiftData
 
 struct PaymentView: View {
     
-    @Environment(\.modelContext) private var context
+    @Environment(\.modelContext) var context
     @Query private var users: [User]  // Obtenemos el usuario
     
     @Environment(\.presentationMode) var presentationMode

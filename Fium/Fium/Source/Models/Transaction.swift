@@ -6,30 +6,64 @@
 //
 
 import Foundation
+import SwiftData
 
-enum TransactionType: String, CaseIterable, Identifiable, Codable {
+enum TransactionFilter: String, CaseIterable, Identifiable {
     case all, payment, redeem
 
     var id: String { rawValue }
 }
 
-struct Transaction: Identifiable, Codable {
-    let id: UUID
-    let name: String
-    let amount: Double
-    let concept: String
-    let date: Date
-    var type: TransactionType
+enum TransactionType: String, Codable {
+    case payment = "payment"
+    case redeem = "redeem"
+}
 
+@Model
+class Transaction: Identifiable {
+    @Attribute(.unique) var id: UUID
+    var amount: Double
+    var concept: String
+    var date: Date
+    
+    var emitter: String // Correo o identificador del emisor
+    var receiver: String // Correo o identificador del receptor
+    var name: String // Nombre del otro usuario involucrado en la transacción (emisor o receptor)
+    
+    // Almacenar el valor del enum como un String
+    private var transactionTypeString: String
+
+    // Computed property para acceder al enum `TransactionType`
+    var type: TransactionType {
+        get {
+            TransactionType(rawValue: transactionTypeString) ?? .payment
+        }
+        set {
+            transactionTypeString = newValue.rawValue
+        }
+    }
+
+    init(id: UUID = UUID(), emitter: String, receiver: String, amount: Double, concept: String, date: Date = Date(), type: TransactionType, name: String) {
+            self.id = id
+            self.emitter = emitter
+            self.receiver = receiver
+            self.amount = amount
+            self.concept = concept
+            self.date = date
+            self.transactionTypeString = type.rawValue // Guardamos el enum como String
+            self.name = name
+        }
+    
     var iconName: String {
         switch type {
         case .payment:
             return "arrow.up.circle"
         case .redeem:
             return "gift.circle"
-        case .all:
-            return "circle"
         }
     }
 }
+
+    
+    
 
