@@ -29,6 +29,10 @@
 		1FE516962C9AD4CC00D8870A /* States.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE516952C9AD4CC00D8870A /* States.swift */; };
 		1FE89E4B2CABDBDA005A9430 /* SplashScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E4A2CABDBD6005A9430 /* SplashScreen.swift */; };
 		1FE89E4D2CAC2C9F005A9430 /* TransactionRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E4C2CAC2C98005A9430 /* TransactionRowView.swift */; };
+		1FE89E502CAD7939005A9430 /* PaymentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E4F2CAD7931005A9430 /* PaymentService.swift */; };
+		1FE89E522CAD7957005A9430 /* PaymentServiceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E512CAD794F005A9430 /* PaymentServiceManager.swift */; };
+		1FE89E542CAD797A005A9430 /* MockPaymentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E532CAD7975005A9430 /* MockPaymentService.swift */; };
+		1FE89E562CAD802A005A9430 /* ProcessingPaymentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E552CAD8025005A9430 /* ProcessingPaymentView.swift */; };
 		1FEE3EE32C983805009F2280 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEE3EE22C983805009F2280 /* LoginView.swift */; };
 		1FEE3EE52C983824009F2280 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEE3EE42C983824009F2280 /* DashboardView.swift */; };
 		1FEE3EE72C983843009F2280 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEE3EE62C983843009F2280 /* ProfileView.swift */; };
@@ -73,6 +77,10 @@
 		1FE516952C9AD4CC00D8870A /* States.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = States.swift; sourceTree = "<group>"; };
 		1FE89E4A2CABDBD6005A9430 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 		1FE89E4C2CAC2C98005A9430 /* TransactionRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionRowView.swift; sourceTree = "<group>"; };
+		1FE89E4F2CAD7931005A9430 /* PaymentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentService.swift; sourceTree = "<group>"; };
+		1FE89E512CAD794F005A9430 /* PaymentServiceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentServiceManager.swift; sourceTree = "<group>"; };
+		1FE89E532CAD7975005A9430 /* MockPaymentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockPaymentService.swift; sourceTree = "<group>"; };
+		1FE89E552CAD8025005A9430 /* ProcessingPaymentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingPaymentView.swift; sourceTree = "<group>"; };
 		1FEE3EE22C983805009F2280 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		1FEE3EE42C983824009F2280 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		1FEE3EE62C983843009F2280 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -144,9 +152,18 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+		1FE89E4E2CAD78A0005A9430 /* Protocols */ = {
+			isa = PBXGroup;
+			children = (
+				1FE89E4F2CAD7931005A9430 /* PaymentService.swift */,
+			);
+			path = Protocols;
+			sourceTree = "<group>";
+		};
 		1FEE3EE12C9837E1009F2280 /* Source */ = {
 			isa = PBXGroup;
 			children = (
+				1FE89E4E2CAD78A0005A9430 /* Protocols */,
 				1FEE3F032C983BF3009F2280 /* Views */,
 				1FEE3EFE2C983BC1009F2280 /* Managers */,
 				1FEE3EF72C983B60009F2280 /* Models */,
@@ -169,6 +186,8 @@
 		1FEE3EFE2C983BC1009F2280 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
+				1FE89E532CAD7975005A9430 /* MockPaymentService.swift */,
+				1FE89E512CAD794F005A9430 /* PaymentServiceManager.swift */,
 				1FEE3EFF2C983BD0009F2280 /* MultipeerManager.swift */,
 				1FD8DEAF2CA95B9300192390 /* ImagePicker.swift */,
 				1FEE3F012C983BE3009F2280 /* TransactionManager.swift */,
@@ -181,6 +200,7 @@
 		1FEE3F032C983BF3009F2280 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				1FE89E552CAD8025005A9430 /* ProcessingPaymentView.swift */,
 				1FE89E4C2CAC2C98005A9430 /* TransactionRowView.swift */,
 				1FE89E4A2CABDBD6005A9430 /* SplashScreen.swift */,
 				1FD8DEBD2CA96B7400192390 /* PaymentView+Functions.swift */,
@@ -297,6 +317,7 @@
 				1FEE3EF12C9838C4009F2280 /* PaymentView.swift in Sources */,
 				1FEE3EF92C983B6D009F2280 /* Transaction.swift in Sources */,
 				1FEE3F022C983BE3009F2280 /* TransactionManager.swift in Sources */,
+				1FE89E562CAD802A005A9430 /* ProcessingPaymentView.swift in Sources */,
 				1FCF49432C947D4A00690AD8 /* Item.swift in Sources */,
 				1FEE3EE92C983857009F2280 /* RedeemView.swift in Sources */,
 				1FEE3F0E2C987E66009F2280 /* BluetoothManager.swift in Sources */,
@@ -304,6 +325,7 @@
 				1FD8DEB62CA96A4D00192390 /* RolePickerView.swift in Sources */,
 				1FEE3EE52C983824009F2280 /* DashboardView.swift in Sources */,
 				1FEE3F002C983BD0009F2280 /* MultipeerManager.swift in Sources */,
+				1FE89E502CAD7939005A9430 /* PaymentService.swift in Sources */,
 				1FEE3EED2C98387D009F2280 /* InviteView.swift in Sources */,
 				1FEE3EE32C983805009F2280 /* LoginView.swift in Sources */,
 				1FD8DEBE2CA96B7C00192390 /* PaymentView+Functions.swift in Sources */,
@@ -312,12 +334,14 @@
 				1FD8DEB82CA96A5E00192390 /* SenderFormView.swift in Sources */,
 				1FEE3EEB2C983868009F2280 /* TransactionsView.swift in Sources */,
 				1FEE3EE72C983843009F2280 /* ProfileView.swift in Sources */,
+				1FE89E522CAD7957005A9430 /* PaymentServiceManager.swift in Sources */,
 				1FE516962C9AD4CC00D8870A /* States.swift in Sources */,
 				1FD8DEAE2CA94FA900192390 /* User.swift in Sources */,
 				1FCF493F2C947D4A00690AD8 /* FiumApp.swift in Sources */,
 				1FEE3F0C2C987794009F2280 /* BonjourService.swift in Sources */,
 				1FD8DEB22CA95BC600192390 /* EditProfileView.swift in Sources */,
 				1FD8DEBC2CA96A7E00192390 /* PaymentProgressView.swift in Sources */,
+				1FE89E542CAD797A005A9430 /* MockPaymentService.swift in Sources */,
 				1FAD6FD72CA6F17500E65073 /* PaymentRejectedView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

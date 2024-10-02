@@ -13,7 +13,7 @@ extension PaymentView {
     // Función para enviar el pago
     func sendPayment() {
         guard let amountValue = Double(amount),
-//              let currentUserID = multipeerManager.currentUser?.id.uuidString, // ID del emisor (tu dispositivo)
+              let currentUserID = multipeerManager.currentUser?.id.uuidString, // ID del emisor (tu dispositivo)
               let peerUserID = multipeerManager.peerUser?.id.uuidString else { // ID del receptor (peer conectado)
             alertMessage = "Error: ID de Peer no disponible o cantidad inválida."
             showAlert = true
@@ -31,13 +31,13 @@ extension PaymentView {
         // Enviar tanto el rol como la solicitud de pago
         
         isSendingPayment = true
-        paymentSent = false
+        paymentRequestSent = false
         
         multipeerManager.sendPaymentRequest(paymentRequest){ success in
             DispatchQueue.main.async {
                 self.isSendingPayment = false
                 if success {
-                    self.paymentSent = true
+                    self.paymentRequestSent = true
                 } else {
                     self.alertMessage = "Error al enviar la solicitud de pago."
                     self.showAlert = true
@@ -52,7 +52,7 @@ extension PaymentView {
         updateTokens(for: multipeerManager.discoveredPeer?.displayName ?? "Desconocido", amount: amountValue)
 
         sendTransactionNotification(amount: amountValue, recipient: multipeerManager.discoveredPeer?.displayName ?? "Desconocido")
-        multipeerManager.updateSenderState(.paymentSent)  // Actualizamos el estado del emisor después de enviar el pago
+        multipeerManager.updateSenderState(.paymentRequestSent)  // Actualizamos el estado del emisor después de enviar el pago
         print("Pago enviado: \(amountValue)€ para \(concept)")
         
     }
@@ -60,18 +60,19 @@ extension PaymentView {
     func resetForm() {
         amount = ""
         concept = ""
-        paymentSent = false
+        paymentRequestSent = false
     }
     
     // Función para procesar la finalización del pago para el emisor
     func processPaymentCompletionForSender() {
         print("processPaymentCompletionForSender() llamado")
         DispatchQueue.main.async {
-            // Indicar que la transacción ha sido completada
-            multipeerManager.updateSenderState(.paymentCompleted)
             // Calcular los tokens ganados
             let tokens = calculateTokens(for: Double(amount) ?? 0)
             tokensEarned = tokens  // Actualizar la variable de tokens en el emisor
+            // Indicar que la transacción ha sido completada
+            multipeerManager.updateSenderState(.paymentCompleted)
+            
             
             // Mostrar el check de éxito y ocultar el ProgressView
             showPaymentSuccess = true
@@ -89,7 +90,7 @@ extension PaymentView {
     func processReceivedPayment() {
         isReceivingPayment = true  // Indicamos que el receptor está procesando el pago
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            paymentSent = true
+            paymentRequestSent = true
             isSendingPayment = false
             isReceivingPayment = false  // Ya no está recibiendo el pago
             

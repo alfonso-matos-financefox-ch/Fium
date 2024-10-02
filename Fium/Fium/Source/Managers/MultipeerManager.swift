@@ -188,7 +188,7 @@ class MultipeerManager: NSObject, ObservableObject {
                 let jsonData = try JSONSerialization.data(withJSONObject: message, options: .fragmentsAllowed)
                 try session.send(jsonData, toPeers: session.connectedPeers, with: .reliable)
                 self.statusMessage = "Solicitud de pago enviada"
-                updateSenderState(.paymentSent)
+                updateSenderState(.paymentRequestSent)
                 completion(true)
             } catch let error {
                 print("Error sending payment request: \(error.localizedDescription)")
@@ -306,6 +306,7 @@ class MultipeerManager: NSObject, ObservableObject {
             print("No se ha establecido el ModelContext.")
             return
         }
+        print("completePayment")
         // Realiza la transacción
         DispatchQueue.main.async {
             self.statusMessage = "Antes de realizar la transacción en completePayment"
@@ -410,7 +411,9 @@ class MultipeerManager: NSObject, ObservableObject {
         
         let acceptanceData: [String: Any] = [
             "status": "accepted",
-            "paymentRequest": paymentData  // Ahora seguro que es un String no opcional
+            "paymentRequest": paymentData,
+            "emitterID": self.peerUser?.id.uuidString ?? "", // Extraer el ID del emisor desde el peerUser
+            "receiverID": self.currentUser?.id.uuidString ?? "" // El ID del receptor es el del usuario local// Ahora seguro que es un String no opcional
         ]
         guard let session = self.session else {
             print("No hay sesión activa para enviar la aceptación")
@@ -676,6 +679,7 @@ extension MultipeerManager: MCSessionDelegate {
                                     }
                                 } else {
                                     self.statusMessage = "NO Entra en paymentRequest"
+                                    print("NO Entra en paymentRequest")
                                 }
                             } else if status == "rejected" {
                                 print("Pago rechazado por el receptor")
@@ -761,5 +765,64 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         print("Peer lost: \(peerID.displayName)")
     }
+    
+    func handlePaymentAccepted(amount: Double, concept: String, emitterID: String, receiverID: String) {
+        // Cambiar el estado a procesando
+        self.updateSenderState(.processingPayment)
+        
+        // Usar PaymentServiceManager para realizar la transacción (mock o real)
+        PaymentServiceManager.shared.processPayment(amount: amount, senderID: emitterID, receiverID: receiverID) { success, transactionID in
+            DispatchQueue.main.async {
+                if success {
+                    // Transacción completada con éxito, notificar al receptor
+                    self.sendTransactionResult(success: true, emitterID: emitterID, receiverID: receiverID)
+                    self.updateSenderState(.paymentCompleted)
+                    self.statusMessage = "Pago completado exitosamente con ID: \(transactionID ?? "N/A")"
+                } else {
+                    // Transacción fallida, notificar al receptor
+                    self.sendTransactionResult(success: false, emitterID: emitterID, receiverID: receiverID)
+                    self.updateSenderState(.paymentFailed)
+                    self.statusMessage = "Error al completar la transacción"
+                }
+            }
+        }
+    }
+    
+    func sendTransactionResult(success: Bool, emitterID: String, receiverID: String) {
+        guard let session = self.session else {
+            print("No hay sesión activa para enviar el resultado de la transacción")
+            self.statusMessage = "No hay sesión activa para enviar el resultado de la transacción"
+            return
+        }
+
+        let resultData: [String: Any] = [
+            "status": success ? "completed" : "failed",
+            "emitterID": emitterID,
+            "receiverID": receiverID
+        ]
+
+        do {
+            let data = try JSONSerialization.data(withJSONObject: resultData, options: .fragmentsAllowed)
+            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            
+            DispatchQueue.main.async {
+                if success {
+                    print("Resultado de transacción exitosa enviado al receptor")
+                    self.statusMessage = "Transacción completada. Notificación enviada al receptor"
+                } else {
+                    print("Resultado de transacción fallida enviado al receptor")
+                    self.statusMessage = "Error en la transacción. Notificación enviada al receptor"
+                }
+            }
+        } catch let error {
+            print("Error al enviar el resultado de la transacción: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self.statusMessage = "Error al enviar resultado: \(error.localizedDescription)"
+            }
+        }
+    }
+
+
+
 }
 

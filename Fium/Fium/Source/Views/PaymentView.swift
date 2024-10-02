@@ -21,7 +21,7 @@ struct PaymentView: View {
     @State var showConfirmation = false
     @State var showReceivedRequest = false
     @State var isSendingPayment = false
-    @State var paymentSent = false
+    @State var paymentRequestSent = false
     @State var showAlert = false
     @State var alertMessage = ""
     @State var tokensEarned = 0
@@ -32,6 +32,7 @@ struct PaymentView: View {
     @State var isReceivingPayment = false  // Nuevo estado para el receptor
     @State var showPaymentSuccess = false
     @State var showDeviceConnection = true  // Mostrar la modal al iniciar
+    @State private var showProcessingSheet = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -155,33 +156,73 @@ struct PaymentView: View {
                     .presentationDetents([.fraction(0.6)])
                     .presentationDragIndicator(.visible)
                     .environmentObject(multipeerManager)
+                }.sheet(isPresented: $showProcessingSheet) {
+                    ProcessingPaymentView(isProcessing: multipeerManager.senderState == .processingPayment,
+                      onRetry: {
+                          // Retry transaction logic
+                          multipeerManager.handlePaymentAccepted(amount: Double(amount) ?? 0, concept: concept, emitterID: multipeerManager.currentUser?.id.uuidString ?? "", receiverID: multipeerManager.peerUser?.id.uuidString ?? "")
+                      },
+                      onCancel: {
+                          // Cancel payment and reset
+                          showProcessingSheet = false
+                          multipeerManager.updateSenderState(.idle)
+                      },
+                      transactionFailed: multipeerManager.senderState == .paymentFailed)
                 }
             .onChange(of: isSendingPayment) {  oldValue, newValue in
-                if !newValue && paymentSent {
+                if !newValue && paymentRequestSent {
                     showConfirmation = true
                     resetForm()
                 }
             }.onChange(of: multipeerManager.receiverState) { oldValue, newValue in
-                print("Entra en receiverState")
+                print("Entra en receiverState: \(newValue)")
+                    
+                if multipeerManager.isReceiver && newValue == .paymentAccepted {
+                    // El receptor ha aceptado el pago y está esperando confirmación del emisor
+                    isReceivingPayment = true
+                }
+
                 if multipeerManager.isReceiver && newValue == .paymentCompleted {
-                    // Aquí puedes llamar a un método específico para el receptor si es necesario
-                    // Por ahora, ya estamos manejando el éxito en `processReceivedPayment()`
+                    // El emisor ha confirmado que la transacción fue exitosa
+                    showPaymentSuccess = true
+                    isReceivingPayment = false
+                }
+                
+                if multipeerManager.isReceiver && newValue == .paymentFailed {
+                    // El emisor ha informado que la transacción ha fallado
+                    showAlert = true
+                    alertMessage = "La transacción ha fallado."
+                    isReceivingPayment = false
                 }
             }.onChange(of: multipeerManager.senderState) { oldValue, newValue in
                 print("Entra en senderState, oldValue: \(oldValue), newValue: \(newValue)")
-                if !multipeerManager.isReceiver && newValue == .paymentCompleted  {
-                    processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
-                    print("Procesando pago completado para el emisor")
-                    // Cerrar la pantalla automáticamente después de 3 segundos
-                }
                 if !multipeerManager.isReceiver && newValue == .paymentAccepted {
                     // Manejar el estado .paymentAccepted si es necesario
                     print("Pago aceptado por el receptor - PaymentAccepted")
-                    // Podrías decidir si quieres mostrar la pantalla de éxito aquí también
+                    // Mostrar la sheet indicando que estamos procesando el pago
+                    showProcessingSheet = true
+                    // El receptor ha aceptado el pago, ahora procesamos la transacción con el servicio de pago
+                    multipeerManager.handlePaymentAccepted(amount: Double(amount) ?? 0, concept: concept, emitterID: multipeerManager.currentUser?.id.uuidString ?? "", receiverID: multipeerManager.peerUser?.id.uuidString ?? "")
+
+                }
+                if !multipeerManager.isReceiver && newValue == .paymentCompleted  {
+                    showProcessingSheet = false
+                    processPaymentCompletionForSender()  // Manejar la finalización del pago para el emisor
+                    // Cerrar la sheet de procesamiento y mostrar la pantalla de éxito
+                    
+                    print("Procesando pago completado para el emisor")
+                    // Cerrar la pantalla automáticamente después de 3 segundos
+                }
+                if !multipeerManager.isReceiver && newValue == .paymentFailed {
+                    // La transacción falló, mostrar error
+                    showAlert = true
+                    alertMessage = "La transacción ha fallado."
+                    // Mostrar que la transacción ha fallado y permitir un retry
+                    showProcessingSheet = true
                 }
                 if !multipeerManager.isReceiver && newValue == .paymentRejected {
 
-                        showRejectionAlert = true
+                    showRejectionAlert = true
                     isSendingPayment = false  // Restablecer el estado de envío
                 }
             }
