@@ -45,7 +45,8 @@ class MultipeerManager: NSObject, ObservableObject {
     @Published var peerName: String = ""
     @Published var peerIcon: String = "person.circle.fill"
     @Published var peerImage: UIImage?
-    @Published var currentUser: User?
+    var currentUser: User? // Usuario local (quien está usando la app)
+    var peerUser: User? // Usuario peer (otro dispositivo con el que te conectas)
     var audioPlayer: AVAudioPlayer?
 //    var deviceIdentifier: String
     
@@ -96,7 +97,7 @@ class MultipeerManager: NSObject, ObservableObject {
         self.session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
         self.session?.delegate = self
 
-        let discoveryInfo = ["name": user.name, "icon": self.localPeerIcon]
+        let discoveryInfo = ["name": user.name, "icon": self.localPeerIcon, "id": user.id.uuidString]
 
         self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: discoveryInfo, serviceType: MultipeerManager.serviceType)
         self.advertiser?.delegate = self
@@ -105,8 +106,18 @@ class MultipeerManager: NSObject, ObservableObject {
         self.browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: MultipeerManager.serviceType)
         self.browser?.delegate = self
         self.browser?.startBrowsingForPeers()
-        print("MultipeerManager inicializado con el usuario: \(user.name)")
+        print("MultipeerManager inicializado con el usuario local: \(user.name) y UUID: \(user.id.uuidString)")
     }
+    
+    // Configurar el usuario peer (usuario del otro dispositivo)
+        func setPeerUser(id: UUID, name: String, profileImage: UIImage?) {
+            let peerUser = User(id: id, email: "", name: name, phoneNumber: "", profileImageData: profileImage?.jpegData(compressionQuality: 0.8))
+            self.peerUser = peerUser
+            self.peerName = name
+            self.peerIcon = "person.circle.fill"
+            self.peerImage = profileImage
+            print("Peer user configurado: \(name)")
+        }
     
     // Método para asignar el contexto desde las vistas
     func setModelContext(_ context: ModelContext) {
@@ -169,7 +180,11 @@ class MultipeerManager: NSObject, ObservableObject {
         if !session.connectedPeers.isEmpty {
             do {
                 let data = try JSONEncoder().encode(paymentRequest)
-                let message = ["paymentRequest": data.base64EncodedString()]
+                let message = [
+                    "paymentRequest": data.base64EncodedString(),
+                    "emitterID": self.currentUser?.id.uuidString ?? "", // Transmitimos el ID del emisor
+                    "receiverID": paymentRequest.receiverID // ID del receptor
+                ]
                 let jsonData = try JSONSerialization.data(withJSONObject: message, options: .fragmentsAllowed)
                 try session.send(jsonData, toPeers: session.connectedPeers, with: .reliable)
                 self.statusMessage = "Solicitud de pago enviada"
@@ -286,7 +301,7 @@ class MultipeerManager: NSObject, ObservableObject {
     
 
     // Método que se ejecuta cuando el receptor acepta la solicitud de pago
-    func completePayment(amount: Double, concept: String, recipientName: String) {
+    func completePayment(amount: Double, concept: String, recipientName: String, emitterID: String, receiverID: String) {
         guard let context = modelContext else {
             print("No se ha establecido el ModelContext.")
             return
@@ -296,8 +311,8 @@ class MultipeerManager: NSObject, ObservableObject {
             self.statusMessage = "Antes de realizar la transacción en completePayment"
             let transaction = Transaction(
                         id: UUID(),
-                        emitter: "id1", // Asume que tienes el email del usuario actual
-                        receiver: "id2", // El correo o identificador del receptor
+                        emitter: emitterID, // ID del emisor
+                        receiver: receiverID, // ID del receptor
                         amount: amount,
                         concept: concept,
                         date: Date(),
@@ -532,6 +547,19 @@ extension MultipeerManager: MCSessionDelegate {
         do {
             if let receivedData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                 print("Receptor recibió datos: \(receivedData)")
+                
+                // Extraer el ID del peer del discoveryInfo y configurar el peerUser
+                if let peerID = receivedData["id"] as? String,
+                   let name = receivedData["name"] as? String {
+                    print("Peer conectado con ID: \(peerID) y nombre: \(name)")
+                    var image: UIImage? = nil
+                    if let imageDataString = receivedData["imageData"] as? String,
+                       let imageData = Data(base64Encoded: imageDataString) {
+                        image = UIImage(data: imageData)
+                    }
+                    self.setPeerUser(id: UUID(uuidString: peerID)!, name: name, profileImage: image) // Suponiendo que no tienes la imagen
+                }
+                            
                 // Manejar la información del perfil
                 if let type = receivedData["type"] as? String, type == "profileInfo" {
                     let name = receivedData["name"] as? String ?? peerID.displayName
@@ -596,7 +624,10 @@ extension MultipeerManager: MCSessionDelegate {
                     
                     // 2. Gestión de la solicitud de pago (solo el receptor debe manejar esto)
                     if self.isReceiver, let paymentData = receivedData["paymentRequest"] as? String,
-                       let decodedData = Data(base64Encoded: paymentData) {
+                       let decodedData = Data(base64Encoded: paymentData),
+                       let emitterID = receivedData["emitterID"] as? String, // Extraer el ID del emisor
+                      let receiverID = receivedData["receiverID"] as? String { // Extraer el ID del receptor
+
                         do {
                             let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
                             print("Solicitud de pago decodificada: \(paymentRequest)")
@@ -630,11 +661,15 @@ extension MultipeerManager: MCSessionDelegate {
                                 
                                 // Asegúrate de que recibes la solicitud de pago de vuelta
                                 if let paymentData = receivedData["paymentRequest"] as? String,
-                                   let decodedData = Data(base64Encoded: paymentData) {
+                                   let decodedData = Data(base64Encoded: paymentData),
+                                    let emitterID = receivedData["emitterID"] as? String, // Extraer el ID del emisor
+                                   let receiverID = receivedData["receiverID"] as? String { // Extraer el ID del receptor
+
                                     do {
                                         let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
                                         self.statusMessage = "Entra en paymentRequest, antes de completePayment"
-                                        self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
+                                        self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName, emitterID: emitterID, receiverID: receiverID)
+
                                     } catch {
                                         self.statusMessage = "Error al decodificar paymentRequest"
                                         print("Error al decodificar paymentRequest: \(error)")
@@ -689,15 +724,21 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
         if peerID != myPeerID {
             var peerName = peerID.displayName
             var peerIcon = "person.circle.fill"
+            var peerIDValue = "" // Agregar una variable para almacenar el id
+            
             if let info = info {
                 // Mostrar la información personalizada (nombre e ícono) del peer
                 peerName = info["name"] ?? peerID.displayName
                 peerIcon = info["icon"] ?? "person.circle.fill"
-//                print("Conectado con \(peerName) que tiene el ícono \(peerIcon)")
+                peerIDValue = info["id"] ?? ""  // Extraer el id
+                print("Conectado con \(peerName) que tiene el ícono \(peerIcon) y ID \(peerIDValue)")
+
 //                self.statusMessage = "Conectado con \(peerName) que tiene el ícono \(peerIcon)"
                 DispatchQueue.main.async {
                     self.peerName = peerName
                     self.peerIcon = peerIcon
+                    self.peerUser = User(id: UUID(uuidString: peerIDValue) ?? UUID(), email: "", name: peerName, phoneNumber: "")  // Configura el peerUser
+
                     self.discoveredPeer = peerID
                 }
             }

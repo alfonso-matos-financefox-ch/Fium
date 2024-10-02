@@ -156,8 +156,8 @@ struct DashboardView: View {
                 multipeerManager.setModelContext(context)
                 if users.isEmpty {
                     activeSheet = .profile
-                } else {
-                    multipeerManager.setUser(users.first!)
+                } else if let existingUser = users.first {
+                    multipeerManager.setUser(existingUser) //TODO: REMOVE THIS
                 }
             }
 //            .disabled(users.isEmpty)

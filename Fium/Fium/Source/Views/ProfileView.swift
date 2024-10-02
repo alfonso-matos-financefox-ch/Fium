@@ -52,13 +52,24 @@ struct ProfileView: View {
             .padding()
             .navigationTitle("Perfil")
             .sheet(isPresented: $showingEditProfile) {
-                EditProfileView(user: users.first ?? User(email: "", name: "", phoneNumber: ""))
+                if let user = users.first {
+                    EditProfileView(user: user)
+                } else {
+                    EmptyView()
+
+                }
+
             }
             .onAppear {
                 // Si no hay usuario, creamos uno por defecto
                 if users.isEmpty {
                     let newUser = User(email: "usuario@example.com", name: "Nombre Apellido", phoneNumber: "")
                     context.insert(newUser)
+                    do {
+                        try context.save()
+                    } catch {
+                        print("Error al crear el usuario: \(error)")
+                    }
                 }
             }
         }

@@ -13,6 +13,8 @@ import SwiftData
 struct LoginView: View {
     @Environment(\.modelContext) private var context
     @EnvironmentObject var multipeerManager: MultipeerManager
+    @Query(sort: \User.email, order: .forward) private var users: [User] // Recuperamos usuarios con @Query
+
     @State private var email = ""
     @State private var password = ""
     @State private var isBiometricAvailable = false
@@ -113,18 +115,26 @@ struct LoginView: View {
             alertMessage = "Por favor, ingresa tu correo y contraseña."
             showAlert = true
         } else {
-            // Simulación de inicio de sesión exitoso
-            // Crear un nuevo usuario y guardarlo en SwiftData
-            let newUser = User(email: email, name: "Nombre de Usuario", phoneNumber: "1234567890")
-            do {
-                try context.insert(newUser)
-                try context.save()
-                multipeerManager.setUser(newUser)
+            // Verifica si ya existe un usuario con este correo
+            if let existingUser = users.first(where: { $0.email == email }) {
+                multipeerManager.setUser(existingUser)
                 isLoggedIn = true
                 showBiometricOption = true
-            } catch {
-                alertMessage = "Error al crear el usuario: \(error.localizedDescription)"
-                showAlert = true
+            } else {
+                // Simulación de inicio de sesión exitoso
+                // Crear un nuevo usuario y guardarlo en SwiftData
+                let newUser = User(email: email, name: "Nombre de Usuario", phoneNumber: "1234567890")
+                context.insert(newUser)
+                do {
+                    
+                    try context.save()
+                    multipeerManager.setUser(newUser)
+                    isLoggedIn = true
+                    showBiometricOption = true
+                } catch {
+                    alertMessage = "Error al crear el usuario: \(error.localizedDescription)"
+                    showAlert = true
+                }
             }
         }
     }
@@ -133,8 +143,9 @@ struct LoginView: View {
         // Simulación de inicio de sesión con PayPal
         // Crear un usuario de ejemplo
         let paypalUser = User(email: "paypal@example.com", name: "PayPal User", phoneNumber: "0987654321")
+        context.insert(paypalUser)
         do {
-            try context.insert(paypalUser)
+
             try context.save()
             multipeerManager.setUser(paypalUser)
             isLoggedIn = true

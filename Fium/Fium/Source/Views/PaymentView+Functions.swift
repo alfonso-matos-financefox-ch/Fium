@@ -13,13 +13,20 @@ extension PaymentView {
     // Función para enviar el pago
     func sendPayment() {
         guard let amountValue = Double(amount),
-              let myPeerID = multipeerManager.myPeerID else {
+//              let currentUserID = multipeerManager.currentUser?.id.uuidString, // ID del emisor (tu dispositivo)
+              let peerUserID = multipeerManager.peerUser?.id.uuidString else { // ID del receptor (peer conectado)
             alertMessage = "Error: ID de Peer no disponible o cantidad inválida."
             showAlert = true
             return
         }
         
-        let paymentRequest = PaymentRequest(amount: amountValue, concept: concept, senderName: myPeerID.displayName)
+        // Crear la solicitud de pago con el UUID del emisor y del receptor
+        let paymentRequest = PaymentRequest(
+            senderName: multipeerManager.currentUser?.name ?? "Desconocido",
+            amount: amountValue,
+            concept: concept,             
+            receiverID: peerUserID // UUID del peer receptor
+        )
             
         // Enviar tanto el rol como la solicitud de pago
         
@@ -68,7 +75,7 @@ extension PaymentView {
             
             // Mostrar el check de éxito y ocultar el ProgressView
             showPaymentSuccess = true
-            print("showPaymentSuccess establecido a true")
+            print("showPaymentSuccess establecido a true para emisor")
         }
 
         // Cerrar la pantalla automáticamente después de 3 segundos
@@ -86,8 +93,23 @@ extension PaymentView {
             isSendingPayment = false
             isReceivingPayment = false  // Ya no está recibiendo el pago
             
-            if let paymentRequest = multipeerManager.receivedPaymentRequest {
-                multipeerManager.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName)
+            if let paymentRequest = multipeerManager.receivedPaymentRequest,
+               let currentUserID = multipeerManager.currentUser?.id.uuidString,
+               let peerUserID = multipeerManager.peerUser?.id.uuidString {
+                
+                // Dependiendo del rol, definimos los IDs correctos
+                let emitterID = multipeerManager.isReceiver ? peerUserID : currentUserID
+                let receiverID = multipeerManager.isReceiver ? currentUserID : peerUserID
+
+                // Llamada a completePayment con los IDs correspondientes
+                multipeerManager.completePayment(
+                    amount: paymentRequest.amount,
+                    concept: paymentRequest.concept,
+                    recipientName: paymentRequest.senderName, // Aquí mantienes el nombre del peer
+                    emitterID: emitterID,
+                    receiverID: receiverID
+                )
+                        
                 // Simula que los tokens se calculan y se muestran
                 tokensEarned = calculateTokens(for: paymentRequest.amount)
             }
