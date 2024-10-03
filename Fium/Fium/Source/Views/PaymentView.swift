@@ -103,7 +103,7 @@ struct PaymentView: View {
                                     
                                     multipeerManager.updateReceiverState(.paymentAccepted)
                                     multipeerManager.sendAcceptanceToSender()
-                                    processReceivedPayment()
+                                    processReceivedPayment() // TODO: ESTO NO SE DEBERÍA HACER AQUI
                                     showReceivedRequest = false
                                     print("Pago aceptado por el receptor - paymentView")
                                 } else {

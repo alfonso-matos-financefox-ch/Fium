@@ -330,7 +330,7 @@ class MultipeerManager: NSObject, ObservableObject {
             
             self.isSendingPayment = false
             self.updateSenderState(.paymentCompleted)
-            self.updateReceiverState(.paymentCompleted)
+//            self.updateReceiverState(.paymentCompleted)
         }
     }
 
@@ -662,25 +662,25 @@ extension MultipeerManager: MCSessionDelegate {
                                 self.updateSenderState(.paymentAccepted)
                                 self.statusMessage = "Pago aceptado por el receptor"
                                 
-                                // Asegúrate de que recibes la solicitud de pago de vuelta
-                                if let paymentData = receivedData["paymentRequest"] as? String,
-                                   let decodedData = Data(base64Encoded: paymentData),
-                                    let emitterID = receivedData["emitterID"] as? String, // Extraer el ID del emisor
-                                   let receiverID = receivedData["receiverID"] as? String { // Extraer el ID del receptor
-
-                                    do {
-                                        let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
-                                        self.statusMessage = "Entra en paymentRequest, antes de completePayment"
-                                        self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName, emitterID: emitterID, receiverID: receiverID)
-
-                                    } catch {
-                                        self.statusMessage = "Error al decodificar paymentRequest"
-                                        print("Error al decodificar paymentRequest: \(error)")
-                                    }
-                                } else {
-                                    self.statusMessage = "NO Entra en paymentRequest"
-                                    print("NO Entra en paymentRequest")
-                                }
+//                                // Asegúrate de que recibes la solicitud de pago de vuelta
+//                                if let paymentData = receivedData["paymentRequest"] as? String,
+//                                   let decodedData = Data(base64Encoded: paymentData),
+//                                    let emitterID = receivedData["emitterID"] as? String, // Extraer el ID del emisor
+//                                   let receiverID = receivedData["receiverID"] as? String { // Extraer el ID del receptor
+//
+//                                    do {
+//                                        let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
+//                                        self.statusMessage = "Entra en paymentRequest, antes de completePayment"
+//                                        self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName, emitterID: emitterID, receiverID: receiverID)
+//
+//                                    } catch {
+//                                        self.statusMessage = "Error al decodificar paymentRequest"
+//                                        print("Error al decodificar paymentRequest: \(error)")
+//                                    }
+//                                } else {
+//                                    self.statusMessage = "NO Entra en paymentRequest"
+//                                    print("NO Entra en paymentRequest")
+//                                }
                             } else if status == "rejected" {
                                 print("Pago rechazado por el receptor")
                                 self.updateSenderState(.paymentRejected)
@@ -692,6 +692,39 @@ extension MultipeerManager: MCSessionDelegate {
                         }
                         
                         
+                    }
+                    // 4. Confirmación del estado de la transacción enviada por el emisor
+                    if self.isReceiver,  let status = receivedData["status"] as? String {
+                        DispatchQueue.main.async {
+                            if status == "completed" {
+                                // El emisor ha confirmado que la transacción fue exitosa
+                                self.updateReceiverState(.paymentCompleted)
+                                print("Pago completado por el emisor")
+                                // Aquí puedes registrar la transacción usando los detalles enviados por el emisor
+                                if let amount = receivedData["amount"] as? Double,
+                                   let concept = receivedData["concept"] as? String {
+                                    // Registrar la transacción usando el monto y concepto proporcionados
+                                    let transaction = Transaction(
+                                        id: UUID(),
+                                        emitter: receivedData["emitterID"] as? String ?? "",
+                                        receiver: receivedData["receiverID"] as? String ?? "",
+                                        amount: amount,
+                                        concept: concept,
+                                        date: Date(),
+                                        type: .payment,
+                                        name: self.peerUser?.name ?? "Desconocido"
+                                    )
+                                    TransactionManager.shared.addTransaction(transaction, context: self.modelContext!)
+                                    print("Transacción completada confirmada por el emisor: \(amount)€ - \(concept)")
+                                }
+                            } else if status == "failed" {
+                                // El emisor ha confirmado que la transacción ha fallado
+                                self.updateReceiverState(.paymentFailed)
+                                print("Pago fallido según el emisor")
+                               
+                                print("Transacción fallida confirmada por el emisor")
+                            }
+                        }
                     }
                 }
             }
@@ -769,26 +802,48 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
     func handlePaymentAccepted(amount: Double, concept: String, emitterID: String, receiverID: String) {
         // Cambiar el estado a procesando
         self.updateSenderState(.processingPayment)
-        
+        guard let context = modelContext else {
+            print("No se ha establecido el ModelContext.")
+            return
+        }
         // Usar PaymentServiceManager para realizar la transacción (mock o real)
         PaymentServiceManager.shared.processPayment(amount: amount, senderID: emitterID, receiverID: receiverID) { success, transactionID in
             DispatchQueue.main.async {
                 if success {
+                    // Aquí realizamos y registramos la transacción
+                    let transaction = Transaction(
+                        id: UUID(),
+                        emitter: self.currentUser?.id.uuidString ?? "",
+                        receiver: self.peerUser?.id.uuidString ?? "",
+                        amount: Double(amount),
+                        concept: concept,
+                        date: Date(),
+                        type: .payment,
+                        name: self.peerUser?.name ?? "Desconocido"
+                    )
+                    TransactionManager.shared.addTransaction(transaction, context: context)
+                    
+                    print("Transacción completa: \(Double(amount))€ para \(self.peerUser?.name ?? "")")
+                    self.statusMessage = "Transacción completa: \(Double(amount))€ para \(self.peerUser?.name ?? "")"
+
+                        
+                    // Envía la notificación de la transacción
+                    self.sendTransactionNotification(amount: amount, recipient: self.peerUser?.name ?? "Desconocido")
                     // Transacción completada con éxito, notificar al receptor
-                    self.sendTransactionResult(success: true, emitterID: emitterID, receiverID: receiverID)
+                    self.sendTransactionResult(success: true, emitterID: emitterID, receiverID: receiverID, amount: amount, concept: concept)
                     self.updateSenderState(.paymentCompleted)
-                    self.statusMessage = "Pago completado exitosamente con ID: \(transactionID ?? "N/A")"
+                    print("Pago completado exitosamente con ID: \(transactionID ?? "N/A")")
                 } else {
                     // Transacción fallida, notificar al receptor
-                    self.sendTransactionResult(success: false, emitterID: emitterID, receiverID: receiverID)
+                    self.sendTransactionResult(success: false, emitterID: emitterID, receiverID: receiverID, amount: amount, concept: concept)
                     self.updateSenderState(.paymentFailed)
-                    self.statusMessage = "Error al completar la transacción"
+                    print("Error al completar la transacción")
                 }
             }
         }
     }
     
-    func sendTransactionResult(success: Bool, emitterID: String, receiverID: String) {
+    func sendTransactionResult(success: Bool, emitterID: String, receiverID: String, amount: Double, concept: String) {
         guard let session = self.session else {
             print("No hay sesión activa para enviar el resultado de la transacción")
             self.statusMessage = "No hay sesión activa para enviar el resultado de la transacción"
@@ -798,8 +853,11 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
         let resultData: [String: Any] = [
             "status": success ? "completed" : "failed",
             "emitterID": emitterID,
-            "receiverID": receiverID
+            "receiverID": receiverID,
+            "amount": amount, // Incluir la cantidad de la transacción
+            "concept": concept // Incluir el concepto de la transacción
         ]
+
 
         do {
             let data = try JSONSerialization.data(withJSONObject: resultData, options: .fragmentsAllowed)
@@ -821,8 +879,6 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
             }
         }
     }
-
-
 
 }
 
