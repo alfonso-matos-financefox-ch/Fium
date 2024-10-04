@@ -8,8 +8,7 @@ import SwiftUI
 
 struct TransactionRowView: View {
     let transaction: Transaction
-    let currentUserEmail: String
-    let tokensEarned: Int?    // Nuevo campo para mostrar los tokens ganados
+    let currentUserID: String  // UUID del usuario actual
     
     var body: some View {
         HStack {
@@ -32,7 +31,7 @@ struct TransactionRowView: View {
                 .foregroundColor(.gray)
                 
                 // Nombre del otro usuario (el emisor o receptor)
-                Text(transaction.name)
+                Text(otherUserName)
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
@@ -45,7 +44,7 @@ struct TransactionRowView: View {
                     .foregroundColor(transaction.amount < 0 ? .red : .green)
                 
                 // Mostrar tokens si están disponibles
-                if let tokensEarned = tokensEarned {
+                if let tokensEarned = calculateTokens() {
                     Text("\(tokensEarned) Tokens")
                         .font(.footnote)
                         .foregroundColor(.blue)
@@ -57,11 +56,22 @@ struct TransactionRowView: View {
 
     // Computed property para saber si soy el emisor
     private var isEmisor: Bool {
-        return transaction.emitter == currentUserEmail
+        return transaction.emitter == currentUserID
+    }
+
+    // Computed property para obtener el nombre del otro usuario
+    private var otherUserName: String {
+        return isEmisor ? transaction.receiver : transaction.emitter
     }
 
     // Computed property para definir la flecha de dirección
     private var arrowDirectionIcon: String {
         return isEmisor ? "arrow.right" : "arrow.left"
     }
+    
+    // Función para calcular los tokens (ajusta la lógica si es necesario)
+    private func calculateTokens() -> Int? {
+        return transaction.amount > 0 ? Int(transaction.amount / 10) : nil
+    }
 }
+

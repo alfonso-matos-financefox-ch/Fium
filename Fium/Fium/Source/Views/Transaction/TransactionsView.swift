@@ -29,8 +29,7 @@ struct TransactionsView: View {
                 List(filteredTransactions) { transaction in
                     TransactionRowView(
                         transaction: transaction,
-                        currentUserEmail: multipeerManager.currentUser?.email ?? "",
-                        tokensEarned: calculateTokens(for: transaction) // Calcular los tokens para la transacción
+                        currentUserID: multipeerManager.currentUser?.id.uuidString ?? ""
                     )
                 }
             }
