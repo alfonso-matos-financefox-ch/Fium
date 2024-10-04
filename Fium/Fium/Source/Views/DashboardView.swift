@@ -47,6 +47,15 @@ struct DashboardView: View {
         users.first?.tokenBalance ?? 0
     }
     
+    // Computed property para obtener la imagen de perfil o el icono predeterminado
+    var profileImage: Image {
+        if let user = users.first, let imageData = user.profileImageData, let uiImage = UIImage(data: imageData) {
+            return Image(uiImage: uiImage)
+        } else {
+            return Image(systemName: "person.circle.fill")
+        }
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -99,29 +108,37 @@ struct DashboardView: View {
                 Spacer()
 
                 // Botón de Perfil
-                Button(action: {
-                    showProfileView = true
-                }) {
-                    Text("Perfil")
-                        .foregroundColor(.blue)
-                }
-                .sheet(isPresented: $showProfileView) {
-                    ProfileView()
-                        .onDisappear {
-                            if let user = users.first {
-                                multipeerManager.setUser(user)
-                            }
-                        }
-                        .environmentObject(multipeerManager) // Pasar environmentObject
-                }
+//                Button(action: {
+//                    showProfileView = true
+//                }) {
+//                    Text("Perfil")
+//                        .foregroundColor(.blue)
+//                }
+//                .sheet(isPresented: $showProfileView) {
+//                    ProfileView()
+//                        .onDisappear {
+//                            if let user = users.first {
+//                                multipeerManager.setUser(user)
+//                            }
+//                        }
+//                        .environmentObject(multipeerManager) // Pasar environmentObject
+//                }
             }
             .padding()
             .navigationTitle("Fium")
+            .navigationBarItems(trailing: Button(action: {
+                activeSheet = .profile
+            }) {
+                profileImage
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+            })
             // Navegación a otras vistas
             .sheet(item: $activeSheet) { item in
                 switch item {
                 case .payment:
-                    if let user = users.first {
+                    if let _ = users.first {
                         PaymentView()
                             .presentationDetents(item.detents)
                             .environmentObject(multipeerManager) // Pasar environmentObject

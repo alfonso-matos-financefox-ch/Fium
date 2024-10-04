@@ -10,5 +10,9 @@
 	<string>Necesitamos acceso a la cámara para que puedas tomar una foto de perfil.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Necesitamos acceso a tu biblioteca de fotos para que puedas seleccionar una imagen de perfil.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Necesitamos acceder a tu ubicación para ofrecerte servicios personalizados y registrar las transacciones.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>La app necesita acceder a tu ubicación para mejorar la experiencia y encontrar comercios cercanos.</string>
 </dict>
 </plist>

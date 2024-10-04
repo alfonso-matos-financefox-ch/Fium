@@ -5,6 +5,7 @@
 //  Created by Alfonso Matos Martínez on 1/10/24.
 //
 import SwiftUI
+import MapKit
 
 struct TransactionRowView: View {
     let transaction: Transaction
@@ -49,7 +50,18 @@ struct TransactionRowView: View {
                         .font(.footnote)
                         .foregroundColor(.blue)
                 }
+                
+                // Botón para acceder a la ubicación en el mapa
+                if let location = transactionLocation {
+                    NavigationLink(destination: TransactionMapView(location: location)) {
+                        Image(systemName: "map.fill")
+                            .foregroundColor(.blue)
+                            .padding(.leading)
+                    }
+                }
             }
+            
+            
         }
         .padding(.vertical, 10)
     }
@@ -61,7 +73,7 @@ struct TransactionRowView: View {
 
     // Computed property para obtener el nombre del otro usuario
     private var otherUserName: String {
-        return isEmisor ? transaction.receiver : transaction.emitter
+        return transaction.name
     }
 
     // Computed property para definir la flecha de dirección
@@ -72,6 +84,15 @@ struct TransactionRowView: View {
     // Función para calcular los tokens (ajusta la lógica si es necesario)
     private func calculateTokens() -> Int? {
         return transaction.amount > 0 ? Int(transaction.amount / 10) : nil
+    }
+    
+    // Computed property para obtener la ubicación de la transacción si existe
+    private var transactionLocation: CLLocation? {
+        guard let latitude = transaction.locationLatitude,
+              let longitude = transaction.locationLongitude else {
+            return nil
+        }
+        return CLLocation(latitude: latitude, longitude: longitude)
     }
 }
 

@@ -30,6 +30,9 @@ extension PaymentView {
         // Actualizar en payment el amount
         amount = "\(amountValue)"
         
+        // Guardamos la información temporalmente en MultipeerManager
+        multipeerManager.transactionAmount = amountValue
+        multipeerManager.transactionConcept = concept
         // Enviar tanto el rol como la solicitud de pago
         
         isSendingPayment = true

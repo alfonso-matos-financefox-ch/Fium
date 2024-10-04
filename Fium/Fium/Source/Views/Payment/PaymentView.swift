@@ -33,6 +33,7 @@ struct PaymentView: View {
     @State var showPaymentSuccess = false
     @State var showDeviceConnection = true  // Mostrar la modal al iniciar
     @State private var showProcessingSheet = false
+    @StateObject private var locationManager = LocationManager()
     
     var body: some View {
         VStack(spacing: 20) {
@@ -160,7 +161,7 @@ struct PaymentView: View {
                     ProcessingPaymentView(isProcessing: multipeerManager.senderState == .processingPayment,
                       onRetry: {
                           // Retry transaction logic
-                          multipeerManager.handlePaymentAccepted(amount: Double(amount) ?? 0, concept: concept, emitterID: multipeerManager.currentUser?.id.uuidString ?? "", receiverID: multipeerManager.peerUser?.id.uuidString ?? "")
+                          multipeerManager.handlePaymentAccepted(emitterID: multipeerManager.currentUser?.id.uuidString ?? "", receiverID: multipeerManager.peerUser?.id.uuidString ?? "")
                       },
                       onCancel: {
                           // Cancel payment and reset
@@ -205,7 +206,7 @@ struct PaymentView: View {
                     // Mostrar la sheet indicando que estamos procesando el pago
                     showProcessingSheet = true
                     // El receptor ha aceptado el pago, ahora procesamos la transacción con el servicio de pago
-                    multipeerManager.handlePaymentAccepted(amount: Double(amount) ?? 0, concept: concept, emitterID: multipeerManager.currentUser?.id.uuidString ?? "", receiverID: multipeerManager.peerUser?.id.uuidString ?? "")
+                    multipeerManager.handlePaymentAccepted(emitterID: multipeerManager.currentUser?.id.uuidString ?? "", receiverID: multipeerManager.peerUser?.id.uuidString ?? "")
 
                 }
                 if !multipeerManager.isReceiver && newValue == .paymentCompleted  {

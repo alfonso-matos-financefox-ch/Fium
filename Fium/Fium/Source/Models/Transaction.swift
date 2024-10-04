@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import CoreLocation
 
 enum TransactionFilter: String, CaseIterable, Identifiable {
     case all, payment, redeem
@@ -31,6 +32,10 @@ class Transaction: Identifiable {
     var name: String // Nombre del otro usuario involucrado en la transacción (emisor o receptor)
     var tokensEarned: Int // Nuevo campo para almacenar los tokens ganados
     
+    // Campo para almacenar la localización donde se realizó la transacción
+    var locationLatitude: Double?
+    var locationLongitude: Double?
+    
     // Almacenar el valor del enum como un String
     private var transactionTypeString: String
 
@@ -44,7 +49,7 @@ class Transaction: Identifiable {
         }
     }
 
-    init(id: UUID = UUID(), emitter: String, receiver: String, amount: Double, concept: String, date: Date = Date(), type: TransactionType, name: String, tokensEarned: Int) {
+    init(id: UUID = UUID(), emitter: String, receiver: String, amount: Double, concept: String, date: Date = Date(), type: TransactionType, name: String, tokensEarned: Int, location: CLLocation? = nil) {
             self.id = id
             self.emitter = emitter
             self.receiver = receiver
@@ -54,6 +59,12 @@ class Transaction: Identifiable {
             self.transactionTypeString = type.rawValue
             self.name = name
             self.tokensEarned = tokensEarned
+        
+            // Asignar la localización si está disponible
+            if let location = location {
+                self.locationLatitude = location.coordinate.latitude
+                self.locationLongitude = location.coordinate.longitude
+            }
         }
     
     var iconName: String {
@@ -65,7 +76,3 @@ class Transaction: Identifiable {
         }
     }
 }
-
-    
-    
-

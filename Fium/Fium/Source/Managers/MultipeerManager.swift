@@ -9,9 +9,10 @@ import Foundation
 import MultipeerConnectivity
 import AVFoundation
 import AudioToolbox
+import CoreLocation
 import SwiftData
 
-class MultipeerManager: NSObject, ObservableObject {
+class MultipeerManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let serviceType = "fium-pay"
     // Propiedad para almacenar el ModelContext
     var modelContext: ModelContext?
@@ -21,6 +22,10 @@ class MultipeerManager: NSObject, ObservableObject {
     var advertiser: MCNearbyServiceAdvertiser?
     var browser: MCNearbyServiceBrowser?
 
+    // Geolocalización
+    var locationManager: CLLocationManager?
+    @Published var currentLocation: CLLocation?
+    
     @Published var discoveredPeer: MCPeerID?
     @Published var receivedPaymentRequest: PaymentRequest?
    
@@ -50,10 +55,27 @@ class MultipeerManager: NSObject, ObservableObject {
     var audioPlayer: AVAudioPlayer?
 //    var deviceIdentifier: String
     
+    @Published var transactionAmount: Double = 0.0
+    @Published var transactionConcept: String = ""
+    
     override init() {
-            super.init()
-        }
+        super.init()
+        setupLocationManager()
+    }
 
+    // Configurar el Location Manager para obtener la geolocalización
+    func setupLocationManager() {
+        locationManager = CLLocationManager()
+        locationManager?.delegate = self
+        locationManager?.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager?.requestWhenInUseAuthorization()
+        locationManager?.startUpdatingLocation()
+    }
+    
+    // Método delegado para recibir la ubicación actualizada
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        currentLocation = locations.last
+    }
     
 //    func setUser(_ user: User) {
 //        print("Entrando en init de multipeer manager")
@@ -310,27 +332,7 @@ class MultipeerManager: NSObject, ObservableObject {
         // Realiza la transacción
         DispatchQueue.main.async {
             self.statusMessage = "Antes de realizar la transacción en completePayment"
-            let tokensEarned = self.calculateTokens(for: amount)
-            // Actualiza el balance de tokens del emisor y receptor
-            if let emitter = self.currentUser {
-                emitter.tokenBalance += tokensEarned
-            }
-            if let receiver = self.peerUser {
-                receiver.tokenBalance += tokensEarned
-            }
             
-            let transaction = Transaction(
-                        id: UUID(),
-                        emitter: emitterID, // ID del emisor
-                        receiver: receiverID, // ID del receptor
-                        amount: amount,
-                        concept: concept,
-                        date: Date(),
-                        type: .payment,
-                        name: recipientName, // Pasamos el nombre del receptor aquí
-                        tokensEarned: tokensEarned // Guardamos los tokens
-                    )
-            TransactionManager.shared.addTransaction(transaction, context: context)
             
             print("Transacción completa: \(amount)€ para \(recipientName)")
             self.statusMessage = "Transacción completa: \(amount)€ para \(recipientName)"
@@ -644,6 +646,9 @@ extension MultipeerManager: MCSessionDelegate {
                         do {
                             let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
                             print("Solicitud de pago decodificada: \(paymentRequest)")
+                            // Almacenar los valores en las propiedades publicadas
+                            self.transactionAmount = paymentRequest.amount
+                            self.transactionConcept = paymentRequest.concept
                             DispatchQueue.main.async {
                                 self.receivedPaymentRequest = paymentRequest
                                 self.updateReceiverState(.paymentRequestReceived)
@@ -672,25 +677,27 @@ extension MultipeerManager: MCSessionDelegate {
                                 self.updateSenderState(.paymentAccepted)
                                 self.statusMessage = "Pago aceptado por el receptor"
                                 
-//                                // Asegúrate de que recibes la solicitud de pago de vuelta
-//                                if let paymentData = receivedData["paymentRequest"] as? String,
-//                                   let decodedData = Data(base64Encoded: paymentData),
+                                // Asegúrate de que recibes la solicitud de pago de vuelta
+                                if let paymentData = receivedData["paymentRequest"] as? String,
+                                   let decodedData = Data(base64Encoded: paymentData) {
 //                                    let emitterID = receivedData["emitterID"] as? String, // Extraer el ID del emisor
 //                                   let receiverID = receivedData["receiverID"] as? String { // Extraer el ID del receptor
 //
-//                                    do {
-//                                        let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
+                                    do {
+                                        let paymentRequest = try JSONDecoder().decode(PaymentRequest.self, from: decodedData)
+                                        self.transactionAmount = paymentRequest.amount
+                                        self.transactionConcept = paymentRequest.concept
 //                                        self.statusMessage = "Entra en paymentRequest, antes de completePayment"
 //                                        self.completePayment(amount: paymentRequest.amount, concept: paymentRequest.concept, recipientName: paymentRequest.senderName, emitterID: emitterID, receiverID: receiverID)
 //
-//                                    } catch {
-//                                        self.statusMessage = "Error al decodificar paymentRequest"
-//                                        print("Error al decodificar paymentRequest: \(error)")
-//                                    }
-//                                } else {
-//                                    self.statusMessage = "NO Entra en paymentRequest"
-//                                    print("NO Entra en paymentRequest")
-//                                }
+                                    } catch {
+                                        self.statusMessage = "Error al decodificar paymentRequest"
+                                        print("Error al decodificar paymentRequest: \(error)")
+                                    }
+                                } else {
+                                    self.statusMessage = "NO Entra en paymentRequest"
+                                    print("NO Entra en paymentRequest")
+                                }
                             } else if status == "rejected" {
                                 print("Pago rechazado por el receptor")
                                 self.updateSenderState(.paymentRejected)
@@ -714,20 +721,8 @@ extension MultipeerManager: MCSessionDelegate {
                                 if let amount = receivedData["amount"] as? Double,
                                    let concept = receivedData["concept"] as? String {
                                     // Registrar la transacción usando el monto y concepto proporcionados
-                                    let tokensEarned = self.calculateTokens(for: amount)
-                                    let transaction = Transaction(
-                                        id: UUID(),
-                                        emitter: receivedData["emitterID"] as? String ?? "",
-                                        receiver: receivedData["receiverID"] as? String ?? "",
-                                        amount: amount,
-                                        concept: concept,
-                                        date: Date(),
-                                        type: .payment,
-                                        name: self.peerUser?.name ?? "Desconocido",
-                                        tokensEarned: tokensEarned // Guardamos los tokens
-                                    )
-                                    TransactionManager.shared.addTransaction(transaction, context: self.modelContext!)
-                                    print("Transacción completada confirmada por el emisor: \(amount)€ - \(concept)")
+                                    
+                                    self.createTransaction(amount: amount, concept: concept, emitterID: receivedData["emitterID"] as? String ?? "", receiverID: receivedData["receiverID"] as? String ?? "", name: self.peerName)
                                 }
                             } else if status == "failed" {
                                 // El emisor ha confirmado que la transacción ha fallado
@@ -811,7 +806,37 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
         print("Peer lost: \(peerID.displayName)")
     }
     
-    func handlePaymentAccepted(amount: Double, concept: String, emitterID: String, receiverID: String) {
+    // Método para crear una transacción con la ubicación actual
+    func createTransaction(amount: Double, concept: String, emitterID: String, receiverID: String, name: String) {
+        guard let context = modelContext else { return }
+        let tokensEarned = self.calculateTokens(for: amount)
+        
+        // Actualiza el balance de tokens del emisor y receptor
+        if let emitter = self.currentUser {
+            emitter.tokenBalance += tokensEarned
+        }
+        if let receiver = self.peerUser {
+            receiver.tokenBalance += tokensEarned
+        }
+        let transaction = Transaction(
+            id: UUID(),
+            emitter: emitterID,
+            receiver: receiverID,
+            amount: amount,
+            concept: concept,
+            date: Date(),
+            type: .payment,
+            name: name, // Este es el nombre del otro usuario
+            tokensEarned: tokensEarned, // Guardamos los tokens generados
+            location: currentLocation // Pasamos la ubicación actual si está disponible
+    )
+        
+        TransactionManager.shared.addTransaction(transaction, context: context)
+        print("Transacción creada con ubicación: \(String(describing: currentLocation))")
+    }
+    
+    
+    func handlePaymentAccepted(emitterID: String, receiverID: String) {
         // Cambiar el estado a procesando
         self.updateSenderState(.processingPayment)
         guard let context = modelContext else {
@@ -819,45 +844,22 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
             return
         }
         // Usar PaymentServiceManager para realizar la transacción (mock o real)
-        PaymentServiceManager.shared.processPayment(amount: amount, senderID: emitterID, receiverID: receiverID) { success, transactionID in
+        PaymentServiceManager.shared.processPayment(amount: self.transactionAmount, senderID: emitterID, receiverID: receiverID) { success, transactionID in
             DispatchQueue.main.async {
                 if success {
-                    let tokensEarned = self.calculateTokens(for: amount)
                     
-                    // Actualiza el balance de tokens del emisor y receptor
-                    if let emitter = self.currentUser {
-                        emitter.tokenBalance += tokensEarned
-                    }
-                    if let receiver = self.peerUser {
-                        receiver.tokenBalance += tokensEarned
-                    }
-                    // Aquí realizamos y registramos la transacción
-                    let transaction = Transaction(
-                        id: UUID(),
-                        emitter: self.currentUser?.id.uuidString ?? "",
-                        receiver: self.peerUser?.id.uuidString ?? "",
-                        amount: Double(amount),
-                        concept: concept,
-                        date: Date(),
-                        type: .payment,
-                        name: self.peerUser?.name ?? "Desconocido",
-                        tokensEarned: tokensEarned // Guardamos los tokens
-                    )
-                    TransactionManager.shared.addTransaction(transaction, context: context)
-                    
-                    print("Transacción completa: \(Double(amount))€ para \(self.peerUser?.name ?? "")")
-                    self.statusMessage = "Transacción completa: \(Double(amount))€ para \(self.peerUser?.name ?? "")"
-
+                    self.createTransaction(amount: self.transactionAmount, concept: self.transactionConcept, emitterID: emitterID, receiverID: receiverID, name: self.peerName)
+                    self.statusMessage = "Transacción completa: \(self.transactionAmount)€ para \(self.peerUser?.name ?? "")"
                         
                     // Envía la notificación de la transacción
-                    self.sendTransactionNotification(amount: amount, recipient: self.peerUser?.name ?? "Desconocido")
+                    self.sendTransactionNotification(amount: self.transactionAmount, recipient: self.peerUser?.name ?? "Desconocido")
                     // Transacción completada con éxito, notificar al receptor
-                    self.sendTransactionResult(success: true, emitterID: emitterID, receiverID: receiverID, amount: amount, concept: concept)
+                    self.sendTransactionResult(success: true, emitterID: emitterID, receiverID: receiverID, amount: self.transactionAmount, concept: self.transactionConcept)
                     self.updateSenderState(.paymentCompleted)
                     print("Pago completado exitosamente con ID: \(transactionID ?? "N/A")")
                 } else {
                     // Transacción fallida, notificar al receptor
-                    self.sendTransactionResult(success: false, emitterID: emitterID, receiverID: receiverID, amount: amount, concept: concept)
+                    self.sendTransactionResult(success: false, emitterID: emitterID, receiverID: receiverID, amount: self.transactionAmount, concept: self.transactionConcept)
                     self.updateSenderState(.paymentFailed)
                     print("Error al completar la transacción")
                 }
