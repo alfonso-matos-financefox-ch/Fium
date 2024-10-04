@@ -27,7 +27,11 @@ struct TransactionsView: View {
 
                 // Lista de Transacciones
                 List(filteredTransactions) { transaction in
-                    TransactionRowView(transaction: transaction, currentUserEmail: multipeerManager.currentUser?.email ?? "")
+                    TransactionRowView(
+                        transaction: transaction,
+                        currentUserEmail: multipeerManager.currentUser?.email ?? "",
+                        tokensEarned: calculateTokens(for: transaction) // Calcular los tokens para la transacción
+                    )
                 }
             }
             .navigationTitle("Transacciones")
@@ -63,4 +67,10 @@ struct TransactionsView: View {
             return "circle"
         }
     }
+    
+    // Función para calcular los tokens ganados (basado en el amount, si es necesario)
+        func calculateTokens(for transaction: Transaction) -> Int? {
+            // Ejemplo: 1 token por cada 10 euros, ajusta la lógica según sea necesario
+            return transaction.amount > 0 ? Int(transaction.amount / 10) : nil
+        }
 }

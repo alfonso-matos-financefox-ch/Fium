@@ -184,6 +184,9 @@ struct PaymentView: View {
 
                 if multipeerManager.isReceiver && newValue == .paymentCompleted {
                     // El emisor ha confirmado que la transacción fue exitosa
+                    // Aquí podrías calcular los tokens ganados por el receptor
+                    tokensEarned = calculateTokens(for: multipeerManager.receivedPaymentRequest?.amount ?? 0)
+
                     showPaymentSuccess = true
                     isReceivingPayment = false
                 }

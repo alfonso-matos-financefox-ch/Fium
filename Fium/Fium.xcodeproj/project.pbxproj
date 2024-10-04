@@ -152,6 +152,22 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+		1FE858702CAFDBD300142888 /* Payment */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Payment;
+			sourceTree = "<group>";
+		};
+		1FE858712CAFDBDB00142888 /* Transaction */ = {
+			isa = PBXGroup;
+			children = (
+				1FE89E4C2CAC2C98005A9430 /* TransactionRowView.swift */,
+				1FEE3EEA2C983868009F2280 /* TransactionsView.swift */,
+			);
+			path = Transaction;
+			sourceTree = "<group>";
+		};
 		1FE89E4E2CAD78A0005A9430 /* Protocols */ = {
 			isa = PBXGroup;
 			children = (
@@ -200,8 +216,9 @@
 		1FEE3F032C983BF3009F2280 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				1FE858712CAFDBDB00142888 /* Transaction */,
+				1FE858702CAFDBD300142888 /* Payment */,
 				1FE89E552CAD8025005A9430 /* ProcessingPaymentView.swift */,
-				1FE89E4C2CAC2C98005A9430 /* TransactionRowView.swift */,
 				1FE89E4A2CABDBD6005A9430 /* SplashScreen.swift */,
 				1FD8DEBD2CA96B7400192390 /* PaymentView+Functions.swift */,
 				1FD8DEBB2CA96A7900192390 /* PaymentProgressView.swift */,
@@ -220,7 +237,6 @@
 				1FEE3EE62C983843009F2280 /* ProfileView.swift */,
 				1FD8DEB12CA95BC300192390 /* EditProfileView.swift */,
 				1FEE3EE82C983857009F2280 /* RedeemView.swift */,
-				1FEE3EEA2C983868009F2280 /* TransactionsView.swift */,
 				1FEE3EEC2C98387D009F2280 /* InviteView.swift */,
 			);
 			path = Views;
