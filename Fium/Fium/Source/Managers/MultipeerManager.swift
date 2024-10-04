@@ -310,6 +310,15 @@ class MultipeerManager: NSObject, ObservableObject {
         // Realiza la transacción
         DispatchQueue.main.async {
             self.statusMessage = "Antes de realizar la transacción en completePayment"
+            let tokensEarned = self.calculateTokens(for: amount)
+            // Actualiza el balance de tokens del emisor y receptor
+            if let emitter = self.currentUser {
+                emitter.tokenBalance += tokensEarned
+            }
+            if let receiver = self.peerUser {
+                receiver.tokenBalance += tokensEarned
+            }
+            
             let transaction = Transaction(
                         id: UUID(),
                         emitter: emitterID, // ID del emisor
@@ -318,7 +327,8 @@ class MultipeerManager: NSObject, ObservableObject {
                         concept: concept,
                         date: Date(),
                         type: .payment,
-                        name: recipientName // Pasamos el nombre del receptor aquí
+                        name: recipientName, // Pasamos el nombre del receptor aquí
+                        tokensEarned: tokensEarned // Guardamos los tokens
                     )
             TransactionManager.shared.addTransaction(transaction, context: context)
             
@@ -704,6 +714,7 @@ extension MultipeerManager: MCSessionDelegate {
                                 if let amount = receivedData["amount"] as? Double,
                                    let concept = receivedData["concept"] as? String {
                                     // Registrar la transacción usando el monto y concepto proporcionados
+                                    let tokensEarned = self.calculateTokens(for: amount)
                                     let transaction = Transaction(
                                         id: UUID(),
                                         emitter: receivedData["emitterID"] as? String ?? "",
@@ -712,7 +723,8 @@ extension MultipeerManager: MCSessionDelegate {
                                         concept: concept,
                                         date: Date(),
                                         type: .payment,
-                                        name: self.peerUser?.name ?? "Desconocido"
+                                        name: self.peerUser?.name ?? "Desconocido",
+                                        tokensEarned: tokensEarned // Guardamos los tokens
                                     )
                                     TransactionManager.shared.addTransaction(transaction, context: self.modelContext!)
                                     print("Transacción completada confirmada por el emisor: \(amount)€ - \(concept)")
@@ -810,6 +822,15 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
         PaymentServiceManager.shared.processPayment(amount: amount, senderID: emitterID, receiverID: receiverID) { success, transactionID in
             DispatchQueue.main.async {
                 if success {
+                    let tokensEarned = self.calculateTokens(for: amount)
+                    
+                    // Actualiza el balance de tokens del emisor y receptor
+                    if let emitter = self.currentUser {
+                        emitter.tokenBalance += tokensEarned
+                    }
+                    if let receiver = self.peerUser {
+                        receiver.tokenBalance += tokensEarned
+                    }
                     // Aquí realizamos y registramos la transacción
                     let transaction = Transaction(
                         id: UUID(),
@@ -819,7 +840,8 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
                         concept: concept,
                         date: Date(),
                         type: .payment,
-                        name: self.peerUser?.name ?? "Desconocido"
+                        name: self.peerUser?.name ?? "Desconocido",
+                        tokensEarned: tokensEarned // Guardamos los tokens
                     )
                     TransactionManager.shared.addTransaction(transaction, context: context)
                     
@@ -878,6 +900,10 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
                 self.statusMessage = "Error al enviar resultado: \(error.localizedDescription)"
             }
         }
+    }
+    
+    func calculateTokens(for amount: Double) -> Int {
+        return Int(amount / 10)  // Por ejemplo, 1 token por cada 10 euros
     }
 
 }

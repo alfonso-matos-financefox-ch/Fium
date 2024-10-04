@@ -60,7 +60,7 @@ struct RedeemDetailView: View {
                 showQRCode = true
 
                 // Registrar la transacción
-                let transaction = Transaction(id: UUID(), emitter: offer.storeName, receiver: "user@example.com", amount: -Double(offer.tokensRequired), concept: "Canje de \(offer.product)", date: Date(), type: .redeem, name: offer.storeName)
+                let transaction = Transaction(id: UUID(), emitter: offer.storeName, receiver: "user@example.com", amount: -Double(offer.tokensRequired), concept: "Canje de \(offer.product)", date: Date(), type: .redeem, name: offer.storeName, tokensEarned: 0)
 
                 TransactionManager.shared.addTransaction(transaction, context: context)
             }) {

@@ -43,11 +43,9 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @State private var activeSheet: ActiveSheet? = nil
     
-    var tokenBalance: Double {
-        transactionManager.transactions.reduce(100) { $0 + $1.amount }
+    var tokenBalance: Int {
+        users.first?.tokenBalance ?? 0
     }
-
-    
     
     var body: some View {
         NavigationView {

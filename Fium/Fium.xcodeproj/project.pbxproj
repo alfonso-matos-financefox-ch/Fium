@@ -27,6 +27,8 @@
 		1FD8DEBC2CA96A7E00192390 /* PaymentProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD8DEBB2CA96A7900192390 /* PaymentProgressView.swift */; };
 		1FD8DEBE2CA96B7C00192390 /* PaymentView+Functions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD8DEBD2CA96B7400192390 /* PaymentView+Functions.swift */; };
 		1FE516962C9AD4CC00D8870A /* States.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE516952C9AD4CC00D8870A /* States.swift */; };
+		1FE858732CAFED2100142888 /* TokensManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE858722CAFED1B00142888 /* TokensManager.swift */; };
+		1FE858752CAFED3200142888 /* UserManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE858742CAFED2F00142888 /* UserManager.swift */; };
 		1FE89E4B2CABDBDA005A9430 /* SplashScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E4A2CABDBD6005A9430 /* SplashScreen.swift */; };
 		1FE89E4D2CAC2C9F005A9430 /* TransactionRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E4C2CAC2C98005A9430 /* TransactionRowView.swift */; };
 		1FE89E502CAD7939005A9430 /* PaymentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE89E4F2CAD7931005A9430 /* PaymentService.swift */; };
@@ -75,6 +77,8 @@
 		1FD8DEBB2CA96A7900192390 /* PaymentProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentProgressView.swift; sourceTree = "<group>"; };
 		1FD8DEBD2CA96B7400192390 /* PaymentView+Functions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PaymentView+Functions.swift"; sourceTree = "<group>"; };
 		1FE516952C9AD4CC00D8870A /* States.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = States.swift; sourceTree = "<group>"; };
+		1FE858722CAFED1B00142888 /* TokensManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokensManager.swift; sourceTree = "<group>"; };
+		1FE858742CAFED2F00142888 /* UserManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManager.swift; sourceTree = "<group>"; };
 		1FE89E4A2CABDBD6005A9430 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 		1FE89E4C2CAC2C98005A9430 /* TransactionRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionRowView.swift; sourceTree = "<group>"; };
 		1FE89E4F2CAD7931005A9430 /* PaymentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentService.swift; sourceTree = "<group>"; };
@@ -155,6 +159,19 @@
 		1FE858702CAFDBD300142888 /* Payment */ = {
 			isa = PBXGroup;
 			children = (
+				1FAD6FD42CA6CD6F00E65073 /* PaymentRequestView.swift */,
+				1FAD6FD22CA6CD5500E65073 /* PaymentSuccessView.swift */,
+				1FAD6FD62CA6F17200E65073 /* PaymentRejectedView.swift */,
+				1FAD6FD82CA6F43C00E65073 /* DeviceConnectionView.swift */,
+				1FAD6FDA2CA701D000E65073 /* UserIconView.swift */,
+				1FD8DEB32CA96A2C00192390 /* PeerHeaderView.swift */,
+				1FD8DEB52CA96A4A00192390 /* RolePickerView.swift */,
+				1FD8DEB72CA96A5A00192390 /* SenderFormView.swift */,
+				1FD8DEB92CA96A6900192390 /* ReceiverMessageView.swift */,
+				1FD8DEBB2CA96A7900192390 /* PaymentProgressView.swift */,
+				1FD8DEBD2CA96B7400192390 /* PaymentView+Functions.swift */,
+				1FE89E552CAD8025005A9430 /* ProcessingPaymentView.swift */,
+				1FEE3EF02C9838C4009F2280 /* PaymentView.swift */,
 			);
 			path = Payment;
 			sourceTree = "<group>";
@@ -202,6 +219,8 @@
 		1FEE3EFE2C983BC1009F2280 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
+				1FE858742CAFED2F00142888 /* UserManager.swift */,
+				1FE858722CAFED1B00142888 /* TokensManager.swift */,
 				1FE89E532CAD7975005A9430 /* MockPaymentService.swift */,
 				1FE89E512CAD794F005A9430 /* PaymentServiceManager.swift */,
 				1FEE3EFF2C983BD0009F2280 /* MultipeerManager.swift */,
@@ -218,21 +237,8 @@
 			children = (
 				1FE858712CAFDBDB00142888 /* Transaction */,
 				1FE858702CAFDBD300142888 /* Payment */,
-				1FE89E552CAD8025005A9430 /* ProcessingPaymentView.swift */,
 				1FE89E4A2CABDBD6005A9430 /* SplashScreen.swift */,
-				1FD8DEBD2CA96B7400192390 /* PaymentView+Functions.swift */,
-				1FD8DEBB2CA96A7900192390 /* PaymentProgressView.swift */,
-				1FD8DEB92CA96A6900192390 /* ReceiverMessageView.swift */,
-				1FD8DEB72CA96A5A00192390 /* SenderFormView.swift */,
-				1FD8DEB52CA96A4A00192390 /* RolePickerView.swift */,
-				1FD8DEB32CA96A2C00192390 /* PeerHeaderView.swift */,
-				1FAD6FDA2CA701D000E65073 /* UserIconView.swift */,
-				1FAD6FD82CA6F43C00E65073 /* DeviceConnectionView.swift */,
-				1FAD6FD62CA6F17200E65073 /* PaymentRejectedView.swift */,
-				1FAD6FD42CA6CD6F00E65073 /* PaymentRequestView.swift */,
-				1FAD6FD22CA6CD5500E65073 /* PaymentSuccessView.swift */,
 				1FEE3EE22C983805009F2280 /* LoginView.swift */,
-				1FEE3EF02C9838C4009F2280 /* PaymentView.swift */,
 				1FEE3EE42C983824009F2280 /* DashboardView.swift */,
 				1FEE3EE62C983843009F2280 /* ProfileView.swift */,
 				1FD8DEB12CA95BC300192390 /* EditProfileView.swift */,
@@ -329,6 +335,7 @@
 				1FEE3EFD2C983BA4009F2280 /* Offer.swift in Sources */,
 				1FAD6FD32CA6CD5D00E65073 /* PaymentSuccessView.swift in Sources */,
 				1FE89E4B2CABDBDA005A9430 /* SplashScreen.swift in Sources */,
+				1FE858732CAFED2100142888 /* TokensManager.swift in Sources */,
 				1FCF49412C947D4A00690AD8 /* ContentView.swift in Sources */,
 				1FEE3EF12C9838C4009F2280 /* PaymentView.swift in Sources */,
 				1FEE3EF92C983B6D009F2280 /* Transaction.swift in Sources */,
@@ -358,6 +365,7 @@
 				1FD8DEB22CA95BC600192390 /* EditProfileView.swift in Sources */,
 				1FD8DEBC2CA96A7E00192390 /* PaymentProgressView.swift in Sources */,
 				1FE89E542CAD797A005A9430 /* MockPaymentService.swift in Sources */,
+				1FE858752CAFED3200142888 /* UserManager.swift in Sources */,
 				1FAD6FD72CA6F17500E65073 /* PaymentRejectedView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

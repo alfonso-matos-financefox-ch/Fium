@@ -29,6 +29,7 @@ class Transaction: Identifiable {
     var emitter: String // Correo o identificador del emisor
     var receiver: String // Correo o identificador del receptor
     var name: String // Nombre del otro usuario involucrado en la transacción (emisor o receptor)
+    var tokensEarned: Int // Nuevo campo para almacenar los tokens ganados
     
     // Almacenar el valor del enum como un String
     private var transactionTypeString: String
@@ -43,15 +44,16 @@ class Transaction: Identifiable {
         }
     }
 
-    init(id: UUID = UUID(), emitter: String, receiver: String, amount: Double, concept: String, date: Date = Date(), type: TransactionType, name: String) {
+    init(id: UUID = UUID(), emitter: String, receiver: String, amount: Double, concept: String, date: Date = Date(), type: TransactionType, name: String, tokensEarned: Int) {
             self.id = id
             self.emitter = emitter
             self.receiver = receiver
             self.amount = amount
             self.concept = concept
             self.date = date
-            self.transactionTypeString = type.rawValue // Guardamos el enum como String
+            self.transactionTypeString = type.rawValue
             self.name = name
+            self.tokensEarned = tokensEarned
         }
     
     var iconName: String {

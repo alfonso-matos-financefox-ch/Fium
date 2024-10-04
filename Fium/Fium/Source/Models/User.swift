@@ -14,14 +14,16 @@ class User: Identifiable {
     var name: String
     var phoneNumber: String
     var profileImageData: Data?
+    var tokenBalance: Int // Nuevo campo para el saldo de tokens
 
-    init(id: UUID = UUID(), email: String, name: String, phoneNumber: String, profileImageData: Data? = nil) {
-        self.id = id
-        self.email = email
-        self.name = name
-        self.phoneNumber = phoneNumber
-        self.profileImageData = profileImageData
-    }
+    init(id: UUID = UUID(), email: String, name: String, phoneNumber: String, profileImageData: Data? = nil, tokenBalance: Int = 100) {
+            self.id = id
+            self.email = email
+            self.name = name
+            self.phoneNumber = phoneNumber
+            self.profileImageData = profileImageData
+            self.tokenBalance = tokenBalance
+        }
 }
 
 
